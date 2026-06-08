@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^2.6.0",
