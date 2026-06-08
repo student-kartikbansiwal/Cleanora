@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Exclude heavy server-only packages from edge bundle
+  serverExternalPackages: ["mongoose", "mongodb"],
   async headers() {
     return [
       {
@@ -36,9 +38,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  experimental: {
-    optimizeCss: true,
   },
 };
 

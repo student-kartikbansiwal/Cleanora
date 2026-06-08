@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <!-- Water Drop Icon -->
+  <g transform="translate(8, 4)">
+    <!-- Drop shape -->
+    <path d="M22 4 C22 4 8 18 8 28 C8 36.837 14.268 44 22 44 C29.732 44 36 36.837 36 28 C36 18 22 4 22 4Z" fill="#00A86B"/>
+    <!-- Sparkle/shine inside drop -->
+    <path d="M22 14 L23.5 20.5 L30 22 L23.5 23.5 L22 30 L20.5 23.5 L14 22 L20.5 20.5 Z" fill="white" opacity="0.9"/>
+    <!-- Small sparkle top right -->
+    <circle cx="30" cy="10" r="1.5" fill="#00A86B" opacity="0.6"/>
+    <path d="M34 6 L34.8 8.8 L37.6 8 L34.8 9.2 L34 12 L33.2 9.2 L30.4 8 L33.2 6.8 Z" fill="#00A86B" opacity="0.4" transform="scale(0.7) translate(15, 2)"/>
+  </g>
+  
+  <!-- Brand Name -->
+  <text x="52" y="30" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700" fill="#0F172A" letter-spacing="2">CLEANORA</text>
+  
+  <!-- Tagline -->
+  <text x="52" y="46" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="400" fill="#64748B" letter-spacing="0.5">Clean Living, Better Living</text>
+</svg>
