@@ -32,7 +32,7 @@ interface Order {
     sku: string;
   }[];
   subtotal: number;
-  shippingCost: number;
+  shippingCharge: number;
   discount: number;
   totalAmount: number;
   shippingAddress: {
@@ -253,8 +253,8 @@ export default function OrderTrackingPage() {
                 )}
                 <div className="flex justify-between">
                   <span className="text-[#64748B]">Shipping</span>
-                  <span className={order.shippingCost === 0 ? "text-[#00A86B]" : ""}>
-                    {order.shippingCost === 0 ? "FREE" : formatPrice(order.shippingCost)}
+                  <span className={order.shippingCharge === 0 ? "text-[#00A86B]" : ""}>
+                    {order.shippingCharge === 0 ? "FREE" : formatPrice(order.shippingCharge)}
                   </span>
                 </div>
                 <div className="flex justify-between font-black text-[#0F172A] pt-2 border-t border-[var(--color-border)]">

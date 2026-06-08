@@ -98,9 +98,29 @@ export default function CheckoutPage() {
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       document.body.appendChild(script);
 
+      // Cancel the pending order and inform the user
+      const cancelPendingOrder = async () => {
+        try {
+          await fetch(`/api/orders/${orderData.orderId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "cancel" }),
+          });
+        } catch {
+          // Silently ignore — order stays pending and can be cleaned up by admin
+        }
+        toast.error("Payment cancelled. Your order has been cancelled.");
+        setLoading(false);
+      };
+
+      script.onerror = () => {
+        toast.error("Failed to load payment gateway. Please try again.");
+        cancelPendingOrder();
+      };
+
       script.onload = () => {
         const rzp = new (window as unknown as { Razorpay: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay({
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          key: paymentData.key,
           amount: paymentData.amount,
           currency: "INR",
           name: "Cleanora",
@@ -112,6 +132,12 @@ export default function CheckoutPage() {
             contact: address.phone,
           },
           theme: { color: "#00A86B" },
+          modal: {
+            // Fires when the user closes the Razorpay popup without paying
+            ondismiss: () => {
+              cancelPendingOrder();
+            },
+          },
           handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
             const verifyRes = await fetch("/api/payment/verify", {
               method: "POST",
