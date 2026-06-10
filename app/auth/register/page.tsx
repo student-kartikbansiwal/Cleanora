@@ -36,6 +36,14 @@ export default function RegisterPage() {
       toast.error("Password must be at least 8 characters");
       return;
     }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      toast.error("Password must contain uppercase, lowercase, and a number");
+      return;
+    }
+    if (formData.phone && !/^[6-9]\d{9}$/.test(formData.phone)) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
@@ -175,7 +183,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input name="password" type={showPassword ? "text" : "password"} value={formData.password}
-                  onChange={handleChange} placeholder="Min. 8 characters" className="input-field pl-10 pr-10" required />
+                  onChange={handleChange} placeholder="Min. 8 chars, upper, lower & number" className="input-field pl-10 pr-10" required />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-navy-700">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

@@ -15,7 +15,35 @@ export async function POST(request: NextRequest) {
     }
 
     await dbConnect();
-    const { amount, orderId } = await request.json();
+    const { orderId } = await request.json();
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, message: "Order ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const order = await Order.findOne({
+      orderId,
+      user: session.user.id,
+    });
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, message: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    if (order.paymentStatus === "paid") {
+      return NextResponse.json(
+        { success: false, message: "Order is already paid" },
+        { status: 400 }
+      );
+    }
+
+    const amount = order.totalAmount;
 
     const razorpayOrder = await createRazorpayOrder(
       amount,
@@ -23,7 +51,6 @@ export async function POST(request: NextRequest) {
       `CLN-${orderId}`
     );
 
-    // Update order with Razorpay order ID
     await Order.findOneAndUpdate(
       { orderId },
       { razorpayOrderId: razorpayOrder.id }

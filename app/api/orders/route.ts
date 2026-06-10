@@ -5,22 +5,25 @@ import Order from "@/models/Order";
 import Cart from "@/models/Cart";
 import Product from "@/models/Product";
 import { generateOrderId } from "@/lib/utils";
+import mongoose from "mongoose";
 import { z } from "zod";
 
 const CreateOrderSchema = z.object({
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      quantity: z.number().min(1),
-    })
-  ),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1, "Product ID is required"),
+        quantity: z.number().min(1, "Quantity must be at least 1"),
+      })
+    )
+    .min(1, "At least one item is required"),
   shippingAddress: z.object({
-    name: z.string().min(1),
-    phone: z.string().regex(/^[6-9]\d{9}$/),
-    street: z.string().min(1),
-    city: z.string().min(1),
-    state: z.string().min(1),
-    pincode: z.string().regex(/^[1-9][0-9]{5}$/),
+    name: z.string().min(1, "Name is required"),
+    phone: z.string().regex(/^[6-9]\d{9}$/, "Invalid phone number"),
+    street: z.string().min(1, "Street address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().min(1, "State is required"),
+    pincode: z.string().regex(/^[1-9][0-9]{5}$/, "Invalid pincode"),
     country: z.string().default("India"),
   }),
   paymentMethod: z.enum(["razorpay", "upi", "cod"]),
@@ -31,9 +34,16 @@ const CreateOrderSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(session.user.id)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid user session" },
         { status: 401 }
       );
     }
@@ -69,9 +79,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized" },
+        { success: false, message: "Please sign in to place an order" },
+        { status: 401 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(session.user.id)) {
+      console.error("Invalid session user ID:", session.user.id);
+      return NextResponse.json(
+        { success: false, message: "Invalid user session. Please sign in again." },
         { status: 401 }
       );
     }
@@ -80,26 +98,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = CreateOrderSchema.parse(body);
 
-    // Fetch product details and validate stock
     const orderItems = [];
     let subtotal = 0;
 
     for (const item of data.items) {
+      if (!mongoose.Types.ObjectId.isValid(item.productId)) {
+        return NextResponse.json(
+          { success: false, message: `Invalid product ID: ${item.productId}` },
+          { status: 400 }
+        );
+      }
+
       const product = await Product.findById(item.productId);
       if (!product) {
         return NextResponse.json(
-          {
-            success: false,
-            message: `Product not found: ${item.productId}`,
-          },
+          { success: false, message: `Product not found` },
           { status: 404 }
+        );
+      }
+      if (!product.isActive) {
+        return NextResponse.json(
+          { success: false, message: `${product.name} is no longer available` },
+          { status: 400 }
         );
       }
       if (product.stock < item.quantity) {
         return NextResponse.json(
           {
             success: false,
-            message: `Insufficient stock for ${product.name}`,
+            message: `Insufficient stock for ${product.name}. Only ${product.stock} left.`,
           },
           { status: 400 }
         );
@@ -111,14 +138,13 @@ export async function POST(request: NextRequest) {
       orderItems.push({
         product: product._id,
         name: product.name,
-        image: product.images[0]?.url || "",
+        image: product.images[0]?.url || "/placeholder-product.png",
         price,
         quantity: item.quantity,
         sku: product.sku,
       });
     }
 
-    // Apply coupon
     let discount = 0;
     if (data.couponCode) {
       const Coupon = (await import("@/models/Coupon")).default;
@@ -158,33 +184,47 @@ export async function POST(request: NextRequest) {
       couponCode: data.couponCode,
       totalAmount,
       paymentMethod: data.paymentMethod,
-      paymentStatus: data.paymentMethod === "cod" ? "pending" : "pending",
+      paymentStatus: "pending",
       orderStatus: "placed",
       notes: data.notes,
       statusHistory: [{ status: "placed", timestamp: new Date() }],
     });
 
-    // Decrease stock
     for (const item of data.items) {
       await Product.findByIdAndUpdate(item.productId, {
         $inc: { stock: -item.quantity, soldCount: item.quantity },
       });
     }
 
-    // Clear cart
-    await Cart.findOneAndUpdate(
-      { user: session.user.id },
-      { items: [] }
-    );
+    await Cart.findOneAndUpdate({ user: session.user.id }, { items: [] });
+
+    console.log(`Order created: ${order.orderId} for user ${session.user.id}`);
 
     return NextResponse.json(
-      { success: true, order, orderId: order.orderId },
+      {
+        success: true,
+        order,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+      },
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const message = error.issues[0]?.message || "Validation error";
+      console.error("Order validation error:", error.issues);
+      return NextResponse.json({ success: false, message }, { status: 400 });
+    }
+    if (error instanceof mongoose.Error.ValidationError) {
+      console.error("Order mongoose validation error:", error.message);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 400 }
+      );
+    }
     console.error("Order POST error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to create order" },
+      { success: false, message: "Failed to create order. Please try again." },
       { status: 500 }
     );
   }

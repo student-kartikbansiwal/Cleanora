@@ -10,18 +10,23 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-    }
-
     await dbConnect();
     const { orderId } = await params;
 
-    const order = await Order.findOne({
-      // Allow either the orderId string or MongoDB _id
+    // Public tracking by human-readable order ID (e.g. CLN-xxx)
+    const isPublicOrderId = orderId.startsWith("CLN-");
+    const query: Record<string, unknown> = {
       $or: [{ orderId }, { _id: orderId.length === 24 ? orderId : null }],
-      user: session.user.id,
-    }).lean();
+    };
+
+    if (!isPublicOrderId) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      }
+      query.user = session.user.id;
+    }
+
+    const order = await Order.findOne(query).lean();
 
     if (!order) {
       return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });

@@ -6,6 +6,11 @@ import { z } from "zod";
 const RegisterSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit phone number")
+    .optional()
+    .or(z.literal("")),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -21,8 +26,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = RegisterSchema.parse(body);
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: data.email });
+    const email = data.email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
         { success: false, message: "An account with this email already exists" },
@@ -31,10 +37,11 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await User.create({
-      name: data.name,
-      email: data.email,
+      name: data.name.trim(),
+      email,
       password: data.password,
-      role: data.email === process.env.ADMIN_EMAIL ? "admin" : "user",
+      phone: data.phone || undefined,
+      role: email === process.env.ADMIN_EMAIL?.toLowerCase() ? "admin" : "user",
     });
 
     return NextResponse.json(
@@ -52,9 +59,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // MongoDB duplicate key error
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code: number }).code === 11000
+    ) {
+      return NextResponse.json(
+        { success: false, message: "An account with this email already exists" },
+        { status: 409 }
+      );
+    }
     console.error("Register error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to create account" },
+      { success: false, message: "Failed to create account. Please try again." },
       { status: 500 }
     );
   }

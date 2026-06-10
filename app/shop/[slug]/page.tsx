@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { toggleWishlistOnServer } from "@/lib/wishlist";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
 
 interface Product {
   _id: string;
@@ -37,6 +39,7 @@ interface Product {
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { data: session } = useSession();
   const { addItem, openCart } = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
 
@@ -268,9 +271,18 @@ export default function ProductDetailPage() {
                   {addingToCart ? "Added!" : product.stock === 0 ? "Out of Stock" : "Add to Cart"}
                 </motion.button>
                 <button
-                  onClick={() => {
-                    toggleItem(product._id);
-                    toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
+                  onClick={async () => {
+                    if (session?.user) {
+                      const data = await toggleWishlistOnServer(product._id);
+                      if (data.success) {
+                        toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
+                      } else {
+                        toast.error(data.message || "Failed to update wishlist");
+                      }
+                    } else {
+                      toggleItem(product._id);
+                      toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️");
+                    }
                   }}
                   className={`p-4 rounded-xl border-2 transition-colors ${
                     wishlisted

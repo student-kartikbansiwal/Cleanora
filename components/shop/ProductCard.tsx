@@ -7,8 +7,10 @@ import { Heart, ShoppingCart, Star, Eye } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
+import { toggleWishlistOnServer } from "@/lib/wishlist";
 import toast from "react-hot-toast";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 interface Product {
   _id: string;
@@ -32,6 +34,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index = 0 }: ProductCardProps) {
+  const { data: session } = useSession();
   const { addItem, openCart } = useCartStore();
   const { toggleItem, isWishlisted } = useWishlistStore();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -59,12 +62,23 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
     setTimeout(() => setIsAddingToCart(false), 600);
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
-    toggleItem(product._id);
-    toast.success(
-      wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️"
-    );
+    if (session?.user) {
+      const data = await toggleWishlistOnServer(product._id);
+      if (data.success) {
+        toast.success(
+          wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️"
+        );
+      } else {
+        toast.error(data.message || "Failed to update wishlist");
+      }
+    } else {
+      toggleItem(product._id);
+      toast.success(
+        wishlisted ? "Removed from wishlist" : "Added to wishlist ❤️"
+      );
+    }
   };
 
   return (

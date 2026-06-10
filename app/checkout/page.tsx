@@ -83,11 +83,11 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Razorpay payment
+      // Razorpay / UPI payment — amount is validated server-side from the order record
       const paymentRes = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total, orderId: orderData.orderId }),
+        body: JSON.stringify({ orderId: orderData.orderId }),
       });
 
       const paymentData = await paymentRes.json();

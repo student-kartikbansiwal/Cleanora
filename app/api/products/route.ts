@@ -17,6 +17,18 @@ const ProductQuerySchema = z.object({
   bestSeller: z.string().optional(),
 });
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const ALLOWED_SORT_FIELDS = [
+  "createdAt",
+  "price",
+  "averageRating",
+  "soldCount",
+  "name",
+];
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
@@ -40,18 +52,37 @@ export async function GET(request: NextRequest) {
       bestSeller,
     } = params;
 
-    // Build filter query
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = { isActive: true };
 
-    if (search) {
-      filter.$text = { $search: search };
+    if (search && search.trim()) {
+      const searchTerm = escapeRegex(search.trim());
+      filter.$or = [
+        { name: { $regex: searchTerm, $options: "i" } },
+        { description: { $regex: searchTerm, $options: "i" } },
+        { shortDescription: { $regex: searchTerm, $options: "i" } },
+        { tags: { $regex: searchTerm, $options: "i" } },
+        { sku: { $regex: searchTerm, $options: "i" } },
+      ];
     }
 
     if (category) {
       const Category = (await import("@/models/Category")).default;
       const cat = await Category.findOne({ slug: category });
-      if (cat) filter.category = cat._id;
+      if (!cat) {
+        return NextResponse.json({
+          success: true,
+          products: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false,
+          },
+        });
+      }
+      filter.category = cat._id;
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -73,7 +104,10 @@ export async function GET(request: NextRequest) {
     }
 
     const skip = (page - 1) * limit;
-    const sortObj: Record<string, 1 | -1> = { [sort]: order === "asc" ? 1 : -1 };
+    const sortField = ALLOWED_SORT_FIELDS.includes(sort) ? sort : "createdAt";
+    const sortObj: Record<string, 1 | -1> = {
+      [sortField]: order === "asc" ? 1 : -1,
+    };
 
     const [products, total] = await Promise.all([
       Product.find(filter)

@@ -96,6 +96,13 @@ function ShopContent() {
     fetchProducts();
   }, [fetchProducts]);
 
+  // Sync filters when URL search params change (footer links, header search)
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setCategory(searchParams.get("category") || "");
+    setPage(1);
+  }, [searchParams]);
+
   const clearFilters = () => {
     setSearch("");
     setCategory("");

@@ -43,12 +43,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
-        // Call our sync API
-        await fetch(`${process.env.NEXTAUTH_URL}/api/auth/google-sync`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user }),
-        }).catch(() => {}); // Non-blocking
+        try {
+          const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/google-sync`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user }),
+          });
+          const data = await res.json();
+          if (data.success && data.userId) {
+            user.id = data.userId;
+            (user as { role?: string }).role = data.role;
+          }
+        } catch (error) {
+          console.error("Google sync failed:", error);
+        }
       }
       return true;
     },
@@ -57,6 +65,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as { role?: string }).role;
         token.id = user.id;
       }
+
+      // Ensure JWT stores MongoDB user ID (not Google OAuth sub)
+      if (
+        token.email &&
+        token.id &&
+        !/^[a-f\d]{24}$/i.test(token.id as string)
+      ) {
+        try {
+          const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/resolve-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: token.email }),
+          });
+          const data = await res.json();
+          if (data.success && data.userId) {
+            token.id = data.userId;
+            token.role = data.role || token.role;
+          }
+        } catch (error) {
+          console.error("User ID resolve failed:", error);
+        }
+      }
+
       if (trigger === "update" && session) {
         token.name = session.name;
         token.image = session.image;

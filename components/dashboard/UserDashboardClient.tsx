@@ -10,6 +10,16 @@ import {
 } from "lucide-react";
 import { formatPrice, getInitials } from "@/lib/utils";
 
+interface WishlistProduct {
+  _id: string;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice?: number;
+  images: { url: string; alt?: string }[];
+  stock: number;
+}
+
 interface UserProps {
   user: {
     id?: string;
@@ -18,6 +28,7 @@ interface UserProps {
     image?: string | null;
     role?: string;
   };
+  initialTab?: string;
 }
 
 interface Order {
@@ -46,10 +57,12 @@ const NAV_ITEMS = [
   { id: "notifications", label: "Notifications", icon: Bell },
 ];
 
-export default function UserDashboardClient({ user }: UserProps) {
-  const [activeTab, setActiveTab] = useState("profile");
+export default function UserDashboardClient({ user, initialTab = "profile" }: UserProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
   const [loading, setLoading] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   useEffect(() => {
     if (activeTab === "orders") {
@@ -62,6 +75,30 @@ export default function UserDashboardClient({ user }: UserProps) {
         .finally(() => setLoading(false));
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "wishlist") {
+      setWishlistLoading(true);
+      fetch("/api/wishlist")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) setWishlistProducts(data.products);
+        })
+        .finally(() => setWishlistLoading(false));
+    }
+  }, [activeTab]);
+
+  const handleRemoveFromWishlist = async (productId: string) => {
+    const res = await fetch("/api/wishlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", productId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setWishlistProducts(data.products);
+    }
+  };
 
   return (
     <div className="pt-20 min-h-screen bg-background">
@@ -239,15 +276,63 @@ export default function UserDashboardClient({ user }: UserProps) {
 
               {/* Wishlist Tab */}
               {activeTab === "wishlist" && (
-                <div className="bg-white rounded-2xl border border-border p-8 text-center">
-                  <Heart size={48} className="text-primary-200 mx-auto mb-4" />
-                  <h2 className="text-xl font-bold text-navy-700 mb-2">Your Wishlist</h2>
-                  <p className="text-muted-foreground mb-6">
-                    Items you&apos;ve saved appear here. Browse products and click the heart icon to save them.
-                  </p>
-                  <Link href="/shop" className="btn-primary">
-                    Browse Products
-                  </Link>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-navy-700">Your Wishlist</h2>
+                    <span className="badge-primary">{wishlistProducts.length} items</span>
+                  </div>
+
+                  {wishlistLoading ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="skeleton h-32 rounded-2xl" />
+                      ))}
+                    </div>
+                  ) : wishlistProducts.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-border p-12 text-center">
+                      <Heart size={48} className="text-primary-200 mx-auto mb-4" />
+                      <h3 className="font-semibold text-navy-700 mb-2">Your wishlist is empty</h3>
+                      <p className="text-muted-foreground text-sm mb-6">
+                        Browse products and click the heart icon to save them.
+                      </p>
+                      <Link href="/shop" className="btn-primary">
+                        Browse Products
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {wishlistProducts.map((product) => (
+                        <div key={product._id} className="bg-white rounded-2xl border border-border p-4 flex gap-4">
+                          <Link href={`/shop/${product.slug}`} className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
+                            <Image
+                              src={product.images[0]?.url || "/placeholder-product.png"}
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link href={`/shop/${product.slug}`}>
+                              <p className="font-semibold text-navy-700 text-sm truncate hover:text-primary-600">
+                                {product.name}
+                              </p>
+                            </Link>
+                            <p className="font-bold text-primary-600 mt-1">{formatPrice(product.price)}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveFromWishlist(product._id)}
+                            className="text-red-400 hover:text-red-600 p-1 self-start"
+                            aria-label="Remove from wishlist"
+                          >
+                            <XCircle size={18} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
