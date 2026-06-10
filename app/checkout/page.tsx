@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -169,8 +169,15 @@ export default function CheckoutPage() {
     }
   };
 
+  // Redirect to cart when empty (in an effect, never during render — render-time
+  // navigation throws "location is not defined" during SSR/prerender)
+  useEffect(() => {
+    if (items.length === 0) {
+      router.push("/cart");
+    }
+  }, [items.length, router]);
+
   if (items.length === 0) {
-    router.push("/cart");
     return null;
   }
 
