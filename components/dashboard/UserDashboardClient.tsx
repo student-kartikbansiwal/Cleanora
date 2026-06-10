@@ -9,6 +9,8 @@ import {
   ShoppingBag, Clock, CheckCircle, Truck, XCircle
 } from "lucide-react";
 import { formatPrice, getInitials } from "@/lib/utils";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { removeFromWishlistOnServer } from "@/lib/wishlist";
 
 interface WishlistProduct {
   _id: string;
@@ -82,19 +84,22 @@ export default function UserDashboardClient({ user, initialTab = "profile" }: Us
       fetch("/api/wishlist")
         .then((r) => r.json())
         .then((data) => {
-          if (data.success) setWishlistProducts(data.products);
+          if (data.success) {
+            setWishlistProducts(data.products);
+            // Keep the global store (Header badge) in sync with the server
+            useWishlistStore.setState({
+              items: data.productIds,
+              count: data.productIds.length,
+            });
+          }
         })
         .finally(() => setWishlistLoading(false));
     }
   }, [activeTab]);
 
   const handleRemoveFromWishlist = async (productId: string) => {
-    const res = await fetch("/api/wishlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "remove", productId }),
-    });
-    const data = await res.json();
+    // removeFromWishlistOnServer updates the global store so the Header badge stays accurate
+    const data = await removeFromWishlistOnServer(productId);
     if (data.success) {
       setWishlistProducts(data.products);
     }

@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ShoppingBag, ArrowLeft, Search, ChevronLeft, ChevronRight,
+  ShoppingBag, Search, ChevronLeft, ChevronRight,
   Eye, CheckCircle, Truck, XCircle, Clock, Package
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 interface Order {
   _id: string;
@@ -103,15 +104,8 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Slim sidebar */}
-      <aside className="w-16 bg-[#0F172A] flex-shrink-0 flex flex-col items-center py-4 gap-4">
-        <Link href="/admin" className="text-white/60 hover:text-white transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
-        <Link href="/admin/orders" className="text-[#00A86B]">
-          <ShoppingBag size={20} />
-        </Link>
-      </aside>
+      {/* Sidebar */}
+      <AdminSidebar />
 
       {/* Main */}
       <div className="flex-1 overflow-auto">

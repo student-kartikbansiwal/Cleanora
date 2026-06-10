@@ -6,10 +6,11 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight,
-  Package, ArrowLeft, Loader2, AlertCircle, ChevronLeft, ChevronRight
+  Package, Loader2, AlertCircle, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 interface Product {
   _id: string;
@@ -99,15 +100,8 @@ export default function AdminProductsPage() {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Sidebar placeholder */}
-      <aside className="w-16 bg-[#0F172A] flex-shrink-0 flex flex-col items-center py-4 gap-4">
-        <Link href="/admin" className="text-white/60 hover:text-white transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
-        <Link href="/admin/products" className="text-[#00A86B]">
-          <Package size={20} />
-        </Link>
-      </aside>
+      {/* Sidebar */}
+      <AdminSidebar />
 
       {/* Main */}
       <div className="flex-1 overflow-auto">

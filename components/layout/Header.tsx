@@ -53,8 +53,18 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const totalItems = getTotalItems();
+
+  // Guard persisted-store badges against SSR/client hydration mismatch
+  useEffect(() => setMounted(true), []);
+
+  const handleSignOut = () => {
+    useWishlistStore.getState().clearWishlist();
+    useCartStore.getState().clearCart();
+    signOut({ callbackUrl: "/" });
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -164,7 +174,7 @@ export default function Header() {
               {/* Wishlist */}
               <Link href="/dashboard/wishlist" className="btn-ghost p-2 rounded-lg relative">
                 <Heart size={20} />
-                {wishlistItems.length > 0 && (
+                {mounted && wishlistItems.length > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {wishlistItems.length > 9 ? "9+" : wishlistItems.length}
                   </span>
@@ -178,7 +188,7 @@ export default function Header() {
                 aria-label="Cart"
               >
                 <ShoppingCart size={20} />
-                {totalItems > 0 && (
+                {mounted && totalItems > 0 && (
                   <motion.span
                     key={totalItems}
                     initial={{ scale: 0.5, opacity: 0 }}
@@ -263,7 +273,7 @@ export default function Header() {
                           )}
                           <button
                             onClick={() => {
-                              signOut({ callbackUrl: "/" });
+                              handleSignOut();
                               setIsUserMenuOpen(false);
                             }}
                             className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

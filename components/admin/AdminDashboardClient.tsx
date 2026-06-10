@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, ShoppingBag, Users, Tag, MessageSquare,
-  TrendingUp, DollarSign, ShoppingCart, UserPlus, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, BarChart2, Settings, LogOut, Menu, X,
+  Package, ShoppingBag, Users, Store,
+  TrendingUp, DollarSign, ShoppingCart, UserPlus,
+  ArrowUpRight, ArrowDownRight,
   Bell, ChevronRight
 } from "lucide-react";
 import {
@@ -12,10 +12,9 @@ import {
   PieChart, Pie, Cell, Legend
 } from "recharts";
 import Link from "next/link";
-import Image from "next/image";
-import { signOut } from "next-auth/react";
 import { formatPrice } from "@/lib/utils";
 import { motion } from "framer-motion";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 interface AnalyticsData {
   stats: {
@@ -42,17 +41,6 @@ interface AnalyticsData {
   }[];
 }
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Products", href: "/admin/products", icon: Package },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Coupons", href: "/admin/coupons", icon: Tag },
-  { label: "Reviews", href: "/admin/reviews", icon: MessageSquare },
-  { label: "Analytics", href: "/admin/analytics", icon: BarChart2 },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
-];
-
 const STATUS_COLORS: Record<string, string> = {
   placed: "bg-blue-100 text-blue-700",
   confirmed: "bg-indigo-100 text-indigo-700",
@@ -69,8 +57,6 @@ const PIE_COLORS = ["#00A86B", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#06B
 export default function AdminDashboardClient() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeNav, setActiveNav] = useState("Dashboard");
 
   useEffect(() => {
     fetch("/api/admin/analytics")
@@ -130,73 +116,7 @@ export default function AdminDashboardClient() {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: sidebarOpen ? 256 : 72 }}
-        className="bg-navy-700 flex flex-col overflow-hidden flex-shrink-0"
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 h-16 border-b border-white/10">
-          <Image src="/logo-white.svg" alt="Cleanora" width={sidebarOpen ? 130 : 0} height={36} className="transition-all" />
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="ml-auto text-white/40 hover:text-white transition-colors flex-shrink-0"
-          >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
-
-        {/* Admin Badge */}
-        {sidebarOpen && (
-          <div className="mx-4 my-4 px-3 py-2 rounded-lg bg-primary-500/20 border border-primary-500/30">
-            <p className="text-primary-400 text-xs font-bold uppercase tracking-wider">Admin Panel</p>
-          </div>
-        )}
-
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto no-scrollbar">
-          {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              onClick={() => setActiveNav(label)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
-                activeNav === label
-                  ? "bg-primary-500 text-white"
-                  : "text-white/50 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Icon size={20} className="flex-shrink-0" />
-              {sidebarOpen && (
-                <span className="text-sm font-medium truncate">{label}</span>
-              )}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Low Stock Alert */}
-        {sidebarOpen && (data?.stats.lowStockProducts ?? 0) > 0 && (
-          <div className="mx-4 mb-4 p-3 rounded-xl bg-amber-500/20 border border-amber-500/30">
-            <div className="flex items-center gap-2 text-amber-400">
-              <AlertTriangle size={15} />
-              <span className="text-xs font-semibold">
-                {data?.stats.lowStockProducts} Low Stock Items
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Sign Out */}
-        <div className="px-2 pb-4 border-t border-white/10 pt-4">
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-white/50 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <LogOut size={20} className="flex-shrink-0" />
-            {sidebarOpen && <span className="text-sm">Sign Out</span>}
-          </button>
-        </div>
-      </motion.aside>
+      <AdminSidebar />
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
@@ -415,7 +335,7 @@ export default function AdminDashboardClient() {
               { label: "Add Product", href: "/admin/products/new", icon: Package, color: "bg-primary-500" },
               { label: "Manage Orders", href: "/admin/orders", icon: ShoppingBag, color: "bg-blue-500" },
               { label: "View Customers", href: "/admin/customers", icon: Users, color: "bg-violet-500" },
-              { label: "Create Coupon", href: "/admin/coupons/new", icon: Tag, color: "bg-amber-500" },
+              { label: "View Store", href: "/", icon: Store, color: "bg-amber-500" },
             ].map((action) => (
               <Link
                 key={action.label}
