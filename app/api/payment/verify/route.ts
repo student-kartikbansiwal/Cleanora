@@ -7,7 +7,7 @@ import Order from "@/models/Order";
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
@@ -17,6 +17,29 @@ export async function POST(request: NextRequest) {
     await dbConnect();
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } =
       await request.json();
+
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !orderId) {
+      return NextResponse.json(
+        { success: false, message: "Missing required payment fields" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Verify the order belongs to the authenticated user
+    const order = await Order.findOne({ orderId, user: session.user.id });
+    if (!order) {
+      return NextResponse.json(
+        { success: false, message: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    if (order.paymentStatus === "paid") {
+      return NextResponse.json(
+        { success: false, message: "Order is already paid" },
+        { status: 400 }
+      );
+    }
 
     const isValid = verifyRazorpaySignature(
       razorpayOrderId,
@@ -32,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     await Order.findOneAndUpdate(
-      { orderId },
+      { orderId, user: session.user.id },
       {
         paymentStatus: "paid",
         orderStatus: "confirmed",

@@ -12,10 +12,9 @@ export async function createRazorpayOrder(
   receipt: string
 ) {
   const order = await razorpay.orders.create({
-    amount: amount * 100, // Convert to paise
+    amount: Math.round(amount * 100), // Convert to paise, ensure integer
     currency,
-    receipt,
-    payment_capture: true,
+    receipt: receipt.slice(0, 40), // Razorpay limits receipt to 40 chars
   });
   return order;
 }

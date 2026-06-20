@@ -277,7 +277,23 @@ body {
   }
 
   /* Product Card */
-  .product-card { }
+  .product-card {
+    position: relative;
+    background: white;
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .product-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-4px);
+    border-color: rgba(0, 168, 107, 0.2);
+  }
+  /* Targets elements with group-hover inside product-card */
+  .product-card:hover .group-hover\:opacity-100 { opacity: 1; }
+  .product-card:hover .group-hover\:scale-105 { transform: scale(1.05); }
   .product-card-image {
     position: relative;
     overflow: hidden;
@@ -291,10 +307,7 @@ body {
 
   /* Discount Badge */
   .discount-badge {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
-    z-index: 10;
+    display: inline-block;
     background: #EF4444;
     color: white;
     font-size: 0.75rem;

@@ -33,7 +33,11 @@ interface Product {
   isBestSeller: boolean;
   isFeatured: boolean;
   tags: string[];
-  specifications?: Record<string, string>;
+  specifications?: { key: string; value: string }[];
+  benefits?: string[];
+  usageGuide?: string;
+  volume?: string;
+  ingredients?: string;
 }
 
 export default function ProductDetailPage() {
@@ -369,19 +373,31 @@ export default function ProductDetailPage() {
 
               {activeTab === "specs" && (
                 <motion.div key="specs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  {product.specifications && Object.keys(product.specifications).length > 0 ? (
+                  {product.specifications && product.specifications.length > 0 ? (
                     <table className="w-full text-sm">
                       <tbody>
-                        {Object.entries(product.specifications).map(([key, val]) => (
-                          <tr key={key} className="border-b border-[var(--color-border)]">
-                            <td className="py-3 pr-6 font-medium text-[#0F172A] w-1/3">{key}</td>
-                            <td className="py-3 text-[var(--color-muted-foreground)]">{val}</td>
+                        {product.specifications.map((spec) => (
+                          <tr key={spec.key} className="border-b border-[var(--color-border)]">
+                            <td className="py-3 pr-6 font-medium text-[#0F172A] w-1/3">{spec.key}</td>
+                            <td className="py-3 text-[var(--color-muted-foreground)]">{spec.value}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   ) : (
                     <p className="text-[var(--color-muted-foreground)]">No specifications available.</p>
+                  )}
+                  {product.volume && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-xl text-sm">
+                      <span className="font-medium text-[#0F172A]">Volume: </span>
+                      <span className="text-[var(--color-muted-foreground)]">{product.volume}</span>
+                    </div>
+                  )}
+                  {product.ingredients && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-xl text-sm">
+                      <span className="font-medium text-[#0F172A]">Ingredients: </span>
+                      <span className="text-[var(--color-muted-foreground)]">{product.ingredients}</span>
+                    </div>
                   )}
                 </motion.div>
               )}

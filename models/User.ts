@@ -12,6 +12,8 @@ export interface IUser extends Document {
   isVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpiry?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -66,6 +68,14 @@ const UserSchema = new Schema<IUser>(
     },
     lastLogin: {
       type: Date,
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpiry: {
+      type: Date,
+      select: false,
     },
   },
   {

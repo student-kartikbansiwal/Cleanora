@@ -8,7 +8,7 @@ export interface IReview extends Document {
   body: string;
   images: string[];
   isVerifiedPurchase: boolean;
-  isApproved: boolean;
+  status: "pending" | "approved" | "rejected";
   helpfulCount: number;
   helpfulVotes: mongoose.Types.ObjectId[];
   adminResponse?: string;
@@ -49,7 +49,11 @@ const ReviewSchema = new Schema<IReview>(
     },
     images: [{ type: String }],
     isVerifiedPurchase: { type: Boolean, default: false },
-    isApproved: { type: Boolean, default: false },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
     helpfulCount: { type: Number, default: 0 },
     helpfulVotes: [{ type: Schema.Types.ObjectId, ref: "User" }],
     adminResponse: { type: String },
@@ -59,17 +63,18 @@ const ReviewSchema = new Schema<IReview>(
 
 // One review per user per product
 ReviewSchema.index({ user: 1, product: 1 }, { unique: true });
-ReviewSchema.index({ product: 1, isApproved: 1 });
+ReviewSchema.index({ product: 1, status: 1 });
 ReviewSchema.index({ rating: -1 });
 ReviewSchema.index({ createdAt: -1 });
+ReviewSchema.index({ status: 1, createdAt: -1 });
 
-// Update product rating after review save
+// Update product rating after review status changes
 ReviewSchema.post("save", async function () {
   const Review = this.constructor as Model<IReview>;
   const Product = mongoose.model("Product");
 
   const stats = await Review.aggregate([
-    { $match: { product: this.product, isApproved: true } },
+    { $match: { product: this.product, status: "approved" } },
     {
       $group: {
         _id: "$product",
@@ -79,12 +84,10 @@ ReviewSchema.post("save", async function () {
     },
   ]);
 
-  if (stats.length > 0) {
-    await Product.findByIdAndUpdate(this.product, {
-      averageRating: Math.round(stats[0].averageRating * 10) / 10,
-      reviewCount: stats[0].reviewCount,
-    });
-  }
+  await Product.findByIdAndUpdate(this.product, {
+    averageRating: stats[0] ? Math.round(stats[0].averageRating * 10) / 10 : 0,
+    reviewCount: stats[0]?.reviewCount || 0,
+  });
 });
 
 const Review: Model<IReview> =

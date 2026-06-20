@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
+import Product from "@/models/Product";
 
 // GET /api/orders/[orderId] — get single order
 export async function GET(
@@ -65,7 +66,19 @@ export async function PATCH(
           { status: 400 }
         );
       }
+
+      // Restore stock for all items
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stock: item.quantity, soldCount: -item.quantity },
+        });
+      }
+
       order.orderStatus = "cancelled";
+      if (order.paymentStatus === "pending") {
+        order.paymentStatus = "failed";
+      }
+      order.statusHistory.push({ status: "cancelled", timestamp: new Date() });
       await order.save();
     }
 

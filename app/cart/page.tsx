@@ -23,15 +23,32 @@ export default function CartPage() {
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
     setApplying(true);
-    // Simple demo coupon validation
-    await new Promise((r) => setTimeout(r, 800));
-    if (couponCode.toUpperCase() === "CLEAN10") {
-      const disc = Math.round(subtotal * 0.1);
-      setDiscount(disc);
-      setCouponApplied(true);
-      toast.success(`Coupon applied! You saved ${formatPrice(disc)}`);
-    } else {
-      toast.error("Invalid coupon code");
+    try {
+      const res = await fetch("/api/cart/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim(), subtotal }),
+      });
+      const data = await res.json();
+      if (data.success && data.discount > 0) {
+        setDiscount(data.discount);
+        setCouponApplied(true);
+        toast.success(`Coupon applied! You saved ${formatPrice(data.discount)}`);
+      } else if (data.success && data.discount === 0) {
+        toast.error("Coupon minimum order amount not reached");
+      } else {
+        toast.error(data.message || "Invalid coupon code");
+      }
+    } catch {
+      // Fallback to demo coupon if API fails
+      if (couponCode.toUpperCase() === "CLEAN10") {
+        const disc = Math.round(subtotal * 0.1);
+        setDiscount(disc);
+        setCouponApplied(true);
+        toast.success(`Coupon applied! You saved ${formatPrice(disc)}`);
+      } else {
+        toast.error("Invalid coupon code");
+      }
     }
     setApplying(false);
   };

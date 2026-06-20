@@ -59,7 +59,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.variable}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
           <Header />
           <main className="min-h-screen">

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
-import { MapPin, CreditCard, ArrowRight, Loader2, Check } from "lucide-react";
+import {
+  MapPin, CreditCard, ArrowRight, Loader2, Check, Tag, X
+} from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 
@@ -20,6 +22,21 @@ interface Address {
   state: string;
   pincode: string;
 }
+
+interface CouponData {
+  code: string;
+  discount: number;
+  description?: string;
+}
+
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry",
+];
 
 export default function CheckoutPage() {
   const { data: session } = useSession();
@@ -37,9 +54,29 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponData | null>(null);
+
   const subtotal = items.reduce((t, i) => t + i.price * i.quantity, 0);
-  const shipping = subtotal >= 499 ? 0 : 49;
-  const total = subtotal + shipping;
+  const discount = appliedCoupon?.discount || 0;
+  const shipping = subtotal - discount >= 499 ? 0 : 49;
+  const total = subtotal - discount + shipping;
+
+  // Update name from session once loaded
+  useEffect(() => {
+    if (session?.user?.name) {
+      setAddress((prev) => ({ ...prev, name: prev.name || session.user.name || "" }));
+    }
+  }, [session?.user?.name]);
+
+  // Redirect if cart is empty
+  useEffect(() => {
+    if (items.length === 0) {
+      router.push("/cart");
+    }
+  }, [items.length, router]);
 
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +89,38 @@ export default function CheckoutPage() {
       return;
     }
     setStep("payment");
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    setCouponLoading(true);
+    try {
+      const res = await fetch("/api/coupon/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponInput.trim(), subtotal }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAppliedCoupon(data.coupon);
+        toast.success(`Coupon applied! You save ${formatPrice(data.coupon.discount)}`);
+      } else {
+        toast.error(data.message || "Invalid coupon");
+      }
+    } catch {
+      toast.error("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    toast("Coupon removed");
   };
 
   const handlePlaceOrder = async () => {
@@ -70,6 +139,7 @@ export default function CheckoutPage() {
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           shippingAddress: { ...address, country: "India" },
           paymentMethod,
+          couponCode: appliedCoupon?.code,
         }),
       });
 
@@ -78,12 +148,13 @@ export default function CheckoutPage() {
 
       if (paymentMethod === "cod") {
         clearCart();
+        setLoading(false);
         toast.success("Order placed successfully! 🎉");
         router.push(`/track/${orderData.orderId}`);
         return;
       }
 
-      // Razorpay / UPI payment — amount is validated server-side from the order record
+      // Razorpay / UPI payment
       const paymentRes = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,14 +162,16 @@ export default function CheckoutPage() {
       });
 
       const paymentData = await paymentRes.json();
-      if (!paymentData.success) throw new Error("Failed to create payment");
+      if (!paymentData.success) {
+        setLoading(false);
+        throw new Error("Failed to create payment");
+      }
 
-      // Load Razorpay
+      // Load Razorpay script
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       document.body.appendChild(script);
 
-      // Cancel the pending order and inform the user
       const cancelPendingOrder = async () => {
         try {
           await fetch(`/api/orders/${orderData.orderId}`, {
@@ -107,9 +180,9 @@ export default function CheckoutPage() {
             body: JSON.stringify({ action: "cancel" }),
           });
         } catch {
-          // Silently ignore — order stays pending and can be cleaned up by admin
+          // silently ignore
         }
-        toast.error("Payment cancelled. Your order has been cancelled.");
+        toast.error("Payment cancelled.");
         setLoading(false);
       };
 
@@ -119,7 +192,8 @@ export default function CheckoutPage() {
       };
 
       script.onload = () => {
-        const rzp = new (window as unknown as { Razorpay: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rzp = new (window as any).Razorpay({
           key: paymentData.key,
           amount: paymentData.amount,
           currency: "INR",
@@ -133,30 +207,39 @@ export default function CheckoutPage() {
           },
           theme: { color: "#00A86B" },
           modal: {
-            // Fires when the user closes the Razorpay popup without paying
             ondismiss: () => {
               cancelPendingOrder();
             },
           },
-          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-            const verifyRes = await fetch("/api/payment/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-                orderId: orderData.orderId,
-              }),
-            });
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                  orderId: orderData.orderId,
+                }),
+              });
 
-            const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              clearCart();
-              toast.success("Payment successful! Order confirmed 🎉");
-              router.push(`/track/${orderData.orderId}`);
-            } else {
-              toast.error("Payment verification failed");
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                clearCart();
+                toast.success("Payment successful! Order confirmed 🎉");
+                router.push(`/track/${orderData.orderId}`);
+              } else {
+                toast.error("Payment verification failed");
+                setLoading(false);
+              }
+            } catch {
+              toast.error("Payment verification error");
+              setLoading(false);
             }
           },
         });
@@ -164,13 +247,11 @@ export default function CheckoutPage() {
       };
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   };
 
   if (items.length === 0) {
-    router.push("/cart");
     return null;
   }
 
@@ -182,13 +263,22 @@ export default function CheckoutPage() {
           <div className="flex items-center gap-4 mt-3">
             {["address", "payment"].map((s, i) => (
               <div key={s} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                  step === s ? "bg-primary-500 text-white" :
-                  (step === "payment" && s === "address") ? "bg-green-500 text-white" : "bg-white/20 text-white/50"
-                }`}>
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                    step === s
+                      ? "bg-primary-500 text-white"
+                      : step === "payment" && s === "address"
+                      ? "bg-green-500 text-white"
+                      : "bg-white/20 text-white/50"
+                  }`}
+                >
                   {step === "payment" && s === "address" ? <Check size={14} /> : i + 1}
                 </div>
-                <span className={`text-sm capitalize ${step === s ? "text-white font-medium" : "text-white/50"}`}>
+                <span
+                  className={`text-sm capitalize ${
+                    step === s ? "text-white font-medium" : "text-white/50"
+                  }`}
+                >
                   {s}
                 </span>
                 {i < 1 && <ArrowRight size={14} className="text-white/30" />}
@@ -214,7 +304,9 @@ export default function CheckoutPage() {
                   <form onSubmit={handleAddressSubmit} className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1.5">Full Name *</label>
+                        <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                          Full Name *
+                        </label>
                         <input
                           type="text"
                           value={address.name}
@@ -225,7 +317,9 @@ export default function CheckoutPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1.5">Phone Number *</label>
+                        <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                          Phone Number *
+                        </label>
                         <input
                           type="tel"
                           value={address.phone}
@@ -238,7 +332,9 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-navy-700 mb-1.5">Street Address *</label>
+                      <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                        Street Address *
+                      </label>
                       <input
                         type="text"
                         value={address.street}
@@ -250,7 +346,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="grid md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1.5">City *</label>
+                        <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                          City *
+                        </label>
                         <input
                           type="text"
                           value={address.city}
@@ -261,18 +359,25 @@ export default function CheckoutPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1.5">State *</label>
-                        <input
-                          type="text"
+                        <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                          State *
+                        </label>
+                        <select
                           value={address.state}
                           onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                          placeholder="State"
                           className="input-field"
                           required
-                        />
+                        >
+                          <option value="">Select State</option>
+                          {INDIAN_STATES.map((s) => (
+                            <option key={s}>{s}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1.5">Pincode *</label>
+                        <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                          Pincode *
+                        </label>
                         <input
                           type="text"
                           value={address.pincode}
@@ -284,7 +389,7 @@ export default function CheckoutPage() {
                         />
                       </div>
                     </div>
-                    <button type="submit" className="btn-primary w-full py-3.5">
+                    <button type="submit" className="btn-primary w-full py-3.5 flex items-center justify-center gap-2">
                       Continue to Payment <ArrowRight size={18} />
                     </button>
                   </form>
@@ -356,12 +461,16 @@ export default function CheckoutPage() {
                   <button
                     onClick={handlePlaceOrder}
                     disabled={loading}
-                    className="btn-primary flex-1 py-3.5"
+                    className="btn-primary flex-1 py-3.5 flex items-center justify-center gap-2"
                   >
                     {loading ? (
-                      <><Loader2 size={18} className="animate-spin" /> Processing...</>
+                      <>
+                        <Loader2 size={18} className="animate-spin" /> Processing...
+                      </>
                     ) : (
-                      <>{paymentMethod === "cod" ? "Place Order" : "Pay"} {formatPrice(total)} →</>
+                      <>
+                        {paymentMethod === "cod" ? "Place Order" : "Pay"} {formatPrice(total)} →
+                      </>
                     )}
                   </button>
                 </div>
@@ -377,30 +486,98 @@ export default function CheckoutPage() {
                 {items.map((item) => (
                   <div key={item.productId} className="flex gap-3">
                     <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
-                      <Image src={item.image || "/placeholder-product.png"} alt={item.name} fill className="object-cover" />
+                      <Image
+                        src={item.image || "/placeholder-product.png"}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-navy-700 truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      <p className="text-sm font-bold text-primary-600">{formatPrice(item.price * item.quantity)}</p>
+                      <p className="text-sm font-bold text-primary-600">
+                        {formatPrice(item.price * item.quantity)}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="space-y-2 py-4 border-t border-border">
+
+              {/* Coupon Input */}
+              <div className="py-4 border-t border-border">
+                <p className="text-sm font-semibold text-navy-700 mb-2 flex items-center gap-1.5">
+                  <Tag size={14} className="text-primary-500" /> Have a coupon?
+                </p>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
+                    <div>
+                      <p className="text-sm font-semibold text-green-700">{appliedCoupon.code}</p>
+                      <p className="text-xs text-green-600">
+                        You save {formatPrice(appliedCoupon.discount)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="p-1 rounded-lg hover:bg-green-100 text-green-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                      placeholder="Enter coupon code"
+                      className="input-field flex-1 text-sm py-2"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading}
+                      className="btn-primary text-sm py-2 px-4 flex items-center gap-1"
+                    >
+                      {couponLoading ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 py-3 border-t border-border">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-600">Discount</span>
+                    <span className="text-green-600 font-semibold">-{formatPrice(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span className={shipping === 0 ? "text-primary-600" : ""}>{shipping === 0 ? "FREE" : formatPrice(shipping)}</span>
+                  <span className={shipping === 0 ? "text-primary-600" : ""}>
+                    {shipping === 0 ? "FREE" : formatPrice(shipping)}
+                  </span>
                 </div>
               </div>
               <div className="flex justify-between font-black text-navy-700 text-lg pt-3 border-t border-border">
                 <span>Total</span>
                 <span className="text-primary-600">{formatPrice(total)}</span>
               </div>
+
+              {shipping === 0 && subtotal > 0 && (
+                <p className="text-xs text-primary-600 mt-2 text-center font-medium">
+                  🎉 You qualify for FREE shipping!
+                </p>
+              )}
+              {shipping > 0 && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Add {formatPrice(499 - subtotal + discount)} more for FREE shipping
+                </p>
+              )}
             </div>
           </div>
         </div>

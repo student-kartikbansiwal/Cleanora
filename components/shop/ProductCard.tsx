@@ -86,9 +86,9 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4 }}
-      className="product-card"
+      className="product-card group"
     >
-      <Link href={`/shop/${product.slug}`}>
+      <Link href={`/shop/${product.slug}`} className="block">
         {/* Image Container */}
         <div className="product-card-image">
           <Image
@@ -111,7 +111,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Wishlist & View buttons */}
           <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -124,14 +124,12 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
                 className={wishlisted ? "fill-red-500 text-red-500" : "text-gray-400"}
               />
             </motion.button>
-            <Link href={`/shop/${product.slug}`}>
-              <motion.div
-                whileHover={{ scale: 1.1 }}
-                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-primary-50 transition-colors"
-              >
-                <Eye size={15} className="text-gray-400 hover:text-primary-600" />
-              </motion.div>
-            </Link>
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-primary-50 transition-colors"
+            >
+              <Eye size={15} className="text-gray-400 hover:text-primary-600" />
+            </motion.div>
           </div>
 
           {/* Out of Stock Overlay */}
@@ -145,7 +143,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="p-4 pb-2">
           <h3 className="font-semibold text-navy-700 text-sm leading-snug line-clamp-2 group-hover:text-primary-600 transition-colors mb-1.5">
             {product.name}
           </h3>
@@ -183,19 +181,21 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
               </span>
             )}
           </div>
-
-          {/* Add to Cart */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleAddToCart}
-            disabled={product.stock === 0 || isAddingToCart}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ShoppingCart size={16} />
-            {isAddingToCart ? "Adding..." : product.stock === 0 ? "Out of Stock" : "Add to Cart"}
-          </motion.button>
         </div>
       </Link>
+
+      {/* Add to Cart - outside Link to avoid nested interactive elements */}
+      <div className="px-4 pb-4">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={handleAddToCart}
+          disabled={product.stock === 0 || isAddingToCart}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ShoppingCart size={16} />
+          {isAddingToCart ? "Adding..." : product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+        </motion.button>
+      </div>
     </motion.div>
   );
 }

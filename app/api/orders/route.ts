@@ -155,18 +155,30 @@ export async function POST(request: NextRequest) {
         validTo: { $gte: new Date() },
       });
 
-      if (coupon && subtotal >= coupon.minOrderAmount) {
+      if (coupon && subtotal >= coupon.minOrderAmount && coupon.usedCount < coupon.usageLimit) {
         if (coupon.type === "percentage") {
           discount = (subtotal * coupon.value) / 100;
           if (coupon.maxDiscountAmount) {
             discount = Math.min(discount, coupon.maxDiscountAmount);
           }
         } else {
-          discount = coupon.value;
+          discount = Math.min(coupon.value, subtotal);
         }
-        await Coupon.findByIdAndUpdate(coupon._id, {
-          $inc: { usedCount: 1 },
-        });
+        // Atomic increment — only if under limit (guards against race conditions)
+        const updated = await Coupon.findOneAndUpdate(
+          { _id: coupon._id, usedCount: { $lt: coupon.usageLimit } },
+          { $inc: { usedCount: 1 } },
+          { new: true }
+        );
+        if (!updated) {
+          // Race condition — coupon was exhausted between check and update
+          discount = 0;
+        }
+      } else if (coupon && coupon.usedCount >= coupon.usageLimit) {
+        return NextResponse.json(
+          { success: false, message: "Coupon usage limit has been reached" },
+          { status: 400 }
+        );
       }
     }
 
@@ -191,9 +203,19 @@ export async function POST(request: NextRequest) {
     });
 
     for (const item of data.items) {
-      await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stock: -item.quantity, soldCount: item.quantity },
-      });
+      const updated = await Product.findOneAndUpdate(
+        { _id: item.productId, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity, soldCount: item.quantity } },
+        { new: true }
+      );
+      if (!updated) {
+        // Race condition — stock was taken between validation and update; rollback order
+        await Order.findByIdAndDelete(order._id);
+        return NextResponse.json(
+          { success: false, message: "Some items went out of stock. Please refresh your cart." },
+          { status: 400 }
+        );
+      }
     }
 
     await Cart.findOneAndUpdate({ user: session.user.id }, { items: [] });

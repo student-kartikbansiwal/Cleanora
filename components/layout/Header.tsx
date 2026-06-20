@@ -24,7 +24,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
   {
-    href: "/categories",
+    href: "/shop",
     label: "Categories",
     dropdown: [
       { href: "/shop?category=bathroom-cleaner", label: "Bathroom Cleaner" },
