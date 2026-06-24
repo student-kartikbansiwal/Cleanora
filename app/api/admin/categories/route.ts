@@ -3,14 +3,12 @@ import { adminGuard } from "@/lib/authGuard";
 import dbConnect from "@/lib/db";
 import Category from "@/models/Category";
 
+// GET /api/admin/categories — returns all active categories for dropdowns
 export async function GET() {
+  const guard = await adminGuard();
+  if (guard) return guard;
+
   try {
-    const guard = await adminGuard(); if (guard) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 403 }
-      );
-    }
     await dbConnect();
     const categories = await Category.find({ isActive: true })
       .select("_id name slug")
