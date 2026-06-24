@@ -218,18 +218,31 @@ export default function ProductForm({
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    // Reset so the same file can be re-selected if needed
+
+    // IMPORTANT: Copy files to a plain array BEFORE resetting the input.
+    // Setting input.value = "" clears the FileList reference in some browsers,
+    // causing the upload loop to see 0 files even though we passed the null check.
+    const fileArray = Array.from(files);
+
+    // Reset input so the same file can be re-selected after upload
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     setUploadingImage(true);
     const newImages: ProductImage[] = [];
 
-    for (const file of Array.from(files)) {
+    for (const file of fileArray) {
       try {
         const fd = new FormData();
         fd.append("file", file);
         fd.append("folder", "cleanora/products");
+        console.debug("[Upload] Sending", file.name, "to /api/upload");
         const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("[Upload] HTTP", res.status, errText);
+          toast.error(`Upload failed (${res.status}): ${file.name}`);
+          continue;
+        }
         const data = await res.json();
         if (data.success) {
           newImages.push({
@@ -240,7 +253,8 @@ export default function ProductForm({
         } else {
           toast.error(data.message ?? "Upload failed");
         }
-      } catch {
+      } catch (err) {
+        console.error("[Upload] fetch error:", err);
         toast.error(`Failed to upload ${file.name}`);
       }
     }

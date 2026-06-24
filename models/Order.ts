@@ -1,4 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+// Ensure User schema is registered before .populate('user') calls
+import "@/models/User";
 
 export interface IOrderItem {
   product: mongoose.Types.ObjectId;

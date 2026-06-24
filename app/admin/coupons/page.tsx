@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Tag, Plus, Search, Trash2, Edit2, Check, Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -43,6 +44,16 @@ export default function AdminCouponsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [total, setTotal] = useState(0);
+
+  // Auto-open the create form when ?new=1 is in the URL (from /admin/coupons/new redirect)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowForm(true);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+    }
+  }, [searchParams]);
 
   const fetchCoupons = useCallback(async () => {
     setLoading(true);

@@ -1,4 +1,8 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+// IMPORTANT: Import Category so its schema is registered before any
+// .populate('category') call. Without this import, Mongoose throws:
+// MissingSchemaError: Schema hasn't been registered for model "Category".
+import "@/models/Category";
 
 export interface IProductImage {
   url: string;

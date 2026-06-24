@@ -1,4 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+// Ensure User and Product schemas are registered before populate calls
+import "@/models/User";
 
 export interface IReview extends Document {
   user: mongoose.Types.ObjectId;

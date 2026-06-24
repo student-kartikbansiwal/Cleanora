@@ -3,13 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
+
+interface ForgotPasswordResponse {
+  success: boolean;
+  message?: string;
+  // Only present in development when no email provider is configured
+  devResetUrl?: string;
+  devToken?: string;
+  emailSent?: boolean;
+  emailError?: string;
+}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [devInfo, setDevInfo] = useState<Pick<ForgotPasswordResponse, "devResetUrl" | "emailSent" | "emailError"> | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +36,18 @@ export default function ForgotPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-      const data = await res.json();
+      const data: ForgotPasswordResponse = await res.json();
 
       if (data.success) {
         setSent(true);
+        // In development: capture the dev reset URL to show on-screen
+        if (data.devResetUrl) {
+          setDevInfo({
+            devResetUrl: data.devResetUrl,
+            emailSent: data.emailSent,
+            emailError: data.emailError,
+          });
+        }
       } else {
         toast.error(data.message || "Failed to send reset email");
       }
@@ -54,9 +73,38 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="text-xl font-bold text-navy-700 mb-2">Check your email!</h2>
               <p className="text-muted-foreground text-sm mb-6">
-                If an account exists for <strong>{email}</strong>, we&apos;ve sent a password reset link. 
+                If an account exists for <strong>{email}</strong>, we&apos;ve sent a password reset link.
                 Check your inbox and spam folder.
               </p>
+
+              {/* Dev Mode Banner — only shown when no email provider is configured */}
+              {devInfo && !devInfo.emailSent && devInfo.devResetUrl && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left">
+                  <div className="flex items-start gap-2 mb-3">
+                    <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-amber-800 font-semibold text-sm">Development Mode</p>
+                      <p className="text-amber-700 text-xs mt-0.5">
+                        No email provider configured. Click below to use your reset link directly:
+                        {devInfo.emailError && (
+                          <span className="block mt-1 text-red-600">Error: {devInfo.emailError}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={devInfo.devResetUrl}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                    Open Reset Link
+                  </a>
+                  <p className="text-amber-600 text-xs mt-2 text-center">
+                    To enable real emails, add <code className="font-mono bg-amber-100 px-1 rounded">RESEND_API_KEY</code> to your <code className="font-mono bg-amber-100 px-1 rounded">.env.local</code>
+                  </p>
+                </div>
+              )}
+
               <Link href="/auth/login" className="btn-primary w-full flex items-center justify-center gap-2">
                 <ArrowLeft size={16} /> Back to Login
               </Link>
