@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  BarChart2, TrendingUp, DollarSign, ShoppingCart, Users, Package
+  BarChart2, TrendingUp, DollarSign, ShoppingCart, Users, Package, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
@@ -29,23 +29,70 @@ interface AnalyticsData {
 
 const PIE_COLORS = ["#00A86B", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];
 
+// Recharts Formatter typing: ValueType is a union that includes undefined
+// Use type assertion to satisfy their complex generic constraint
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const revenueFormatter = (value: any): [string, string] =>
+  [value != null ? formatPrice(Number(value)) : "₹0", "Revenue"];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const countFormatter = (value: any, name: any): [string, string] =>
+  [String(value ?? 0), String(name)];
+
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/analytics")
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setData(d); })
-      .finally(() => setLoading(false));
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/analytics");
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const d = await res.json();
+      if (d.success) {
+        setData(d);
+      } else {
+        throw new Error(d.message || "Failed to load analytics");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load analytics");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const statCards = data ? [
-    { label: "Total Revenue", value: formatPrice(data.stats.totalRevenue), sub: `${formatPrice(data.stats.monthRevenue)} this month`, trend: data.stats.revenueGrowth, icon: DollarSign, color: "bg-primary-500", lightColor: "bg-primary-50", textColor: "text-primary-600" },
-    { label: "Total Orders", value: data.stats.totalOrders.toLocaleString(), sub: `${data.stats.monthOrders} this month`, trend: 12, icon: ShoppingCart, color: "bg-blue-500", lightColor: "bg-blue-50", textColor: "text-blue-600" },
-    { label: "Total Customers", value: data.stats.totalUsers.toLocaleString(), sub: `+${data.stats.monthUsers} this month`, trend: 8, icon: Users, color: "bg-violet-500", lightColor: "bg-violet-50", textColor: "text-violet-600" },
-    { label: "Active Products", value: data.stats.totalProducts.toLocaleString(), sub: `${data.stats.lowStockProducts} low stock`, trend: -2, icon: Package, color: "bg-amber-500", lightColor: "bg-amber-50", textColor: "text-amber-600" },
-  ] : [];
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  const statCards = data
+    ? [
+        { label: "Total Revenue", value: formatPrice(data.stats.totalRevenue), sub: `${formatPrice(data.stats.monthRevenue)} this month`, trend: data.stats.revenueGrowth, icon: DollarSign, lightColor: "bg-primary-50", textColor: "text-primary-600" },
+        { label: "Total Orders", value: data.stats.totalOrders.toLocaleString(), sub: `${data.stats.monthOrders} this month`, trend: 12, icon: ShoppingCart, lightColor: "bg-blue-50", textColor: "text-blue-600" },
+        { label: "Total Customers", value: data.stats.totalUsers.toLocaleString(), sub: `+${data.stats.monthUsers} this month`, trend: 8, icon: Users, lightColor: "bg-violet-50", textColor: "text-violet-600" },
+        { label: "Active Products", value: data.stats.totalProducts.toLocaleString(), sub: `${data.stats.lowStockProducts} low stock`, trend: -2, icon: Package, lightColor: "bg-amber-50", textColor: "text-amber-600" },
+      ]
+    : [];
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-navy-700">Analytics</h1>
+          <Link href="/admin" className="btn-outline text-sm py-2">← Dashboard</Link>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+          <p className="text-red-700 font-medium mb-2">Failed to load analytics</p>
+          <p className="text-red-500 text-sm mb-4">{error}</p>
+          <button onClick={fetchAnalytics} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors mx-auto">
+            <RefreshCw size={14} /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -57,7 +104,6 @@ export default function AdminAnalyticsPage() {
         <Link href="/admin" className="btn-outline text-sm py-2">← Dashboard</Link>
       </div>
 
-      {/* Stats Grid */}
       {loading ? (
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
@@ -82,9 +128,7 @@ export default function AdminAnalyticsPage() {
         </div>
       )}
 
-      {/* Charts */}
       <div className="grid xl:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
         <div className="xl:col-span-2 bg-white rounded-2xl p-6 border border-border shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -93,9 +137,7 @@ export default function AdminAnalyticsPage() {
             </div>
             <TrendingUp size={20} className="text-primary-500" />
           </div>
-          {loading ? (
-            <div className="skeleton h-64 rounded-xl" />
-          ) : (
+          {loading ? <div className="skeleton h-64 rounded-xl" /> : (
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={data?.revenueByDay || []}>
                 <defs>
@@ -106,48 +148,28 @@ export default function AdminAnalyticsPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis dataKey="_id" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
-                <Tooltip
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(value: any) => [formatPrice(Number(value)), "Revenue"]}
-                  contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }}
-                />
+                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `₹${v / 1000}k`} />
+                <Tooltip formatter={revenueFormatter} contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }} />
                 <Area type="monotone" dataKey="revenue" stroke="#00A86B" strokeWidth={2.5} fill="url(#revenueGrad)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
 
-        {/* Orders By Status Pie */}
         <div className="bg-white rounded-2xl p-6 border border-border shadow-sm">
           <div className="mb-6">
             <h2 className="font-bold text-navy-700">Orders by Status</h2>
             <p className="text-sm text-muted-foreground">Current distribution</p>
           </div>
-          {loading ? (
-            <div className="skeleton h-64 rounded-xl" />
-          ) : (
+          {loading ? <div className="skeleton h-64 rounded-xl" /> : (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
-                <Pie
-                  data={data?.ordersByStatus || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="count"
-                  nameKey="_id"
-                >
+                <Pie data={data?.ordersByStatus || []} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="count" nameKey="_id">
                   {data?.ordersByStatus.map((_, index) => (
                     <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(value: any, name: any) => [value, name]}
-                  contentStyle={{ borderRadius: "12px" }}
-                />
+                <Tooltip formatter={countFormatter} contentStyle={{ borderRadius: "12px" }} />
                 <Legend iconType="circle" iconSize={8} />
               </PieChart>
             </ResponsiveContainer>
@@ -155,15 +177,12 @@ export default function AdminAnalyticsPage() {
         </div>
       </div>
 
-      {/* Orders per day bar chart */}
       <div className="bg-white rounded-2xl p-6 border border-border shadow-sm">
         <div className="mb-6">
           <h2 className="font-bold text-navy-700">Orders Per Day</h2>
           <p className="text-sm text-muted-foreground">Last 30 days</p>
         </div>
-        {loading ? (
-          <div className="skeleton h-48 rounded-xl" />
-        ) : (
+        {loading ? <div className="skeleton h-48 rounded-xl" /> : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data?.revenueByDay || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
@@ -176,7 +195,6 @@ export default function AdminAnalyticsPage() {
         )}
       </div>
 
-      {/* KPI Summary */}
       {data && (
         <div className="grid md:grid-cols-3 gap-5">
           <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-5 text-white">

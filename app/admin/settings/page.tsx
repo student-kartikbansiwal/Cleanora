@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, Store, Bell, Shield, Palette, Save, Loader2, Check } from "lucide-react";
+import { Store, Bell, Shield, Palette, Save, Loader2, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 

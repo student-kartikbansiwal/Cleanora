@@ -1,0 +1,328 @@
+warning: in the working copy of 'app/admin/analytics/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/coupons/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/customers/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/reviews/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/settings/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/admin/analytics/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/admin/coupons/[id]/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/admin/coupons/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/admin/reviews/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/auth/forgot-password/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/auth/google-sync/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/auth/resolve-user/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/auth/validate/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/orders/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/WishlistSync.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/auth.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/db.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'next.config.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'store/cartStore.ts', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/about/page.tsx b/app/about/page.tsx[m
+[1mdeleted file mode 100644[m
+[1mindex 09a00aa..0000000[m
+[1m--- a/app/about/page.tsx[m
+[1m+++ /dev/null[m
+[36m@@ -1,232 +0,0 @@[m
+[31m-"use client";[m
+[31m-[m
+[31m-import { motion } from "framer-motion";[m
+[31m-import Link from "next/link";[m
+[31m-import {[m
+[31m-  Shield, Leaf, Award, Users, TrendingUp,[m
+[31m-  CheckCircle, ArrowRight, Star[m
+[31m-} from "lucide-react";[m
+[31m-[m
+[31m-const STATS = [[m
+[31m-  { value: "10M+", label: "Products Sold", icon: TrendingUp },[m
+[31m-  { value: "50K+", label: "Happy Customers", icon: Users },[m
+[31m-  { value: "4.8★", label: "Average Rating", icon: Star },[m
+[31m-  { value: "100%", label: "Genuine Products", icon: Shield },[m
+[31m-];[m
+[31m-[m
+[31m-const VALUES = [[m
+[31m-  {[m
+[31m-    icon: Shield,[m
+[31m-    title: "Quality Assurance",[m
+[31m-    description: "Every product undergoes rigorous testing to meet safety standards and deliver consistent results.",[m
+[31m-    color: "bg-primary-50 text-primary-600",[m
+[31m-  },[m
+[31m-  {[m
+[31m-    icon: Leaf,[m
+[31m-    title: "Eco-Friendly",[m
+[31m-    description: "We use biodegradable ingredients and sustainable packaging to minimize environmental impact.",[m
+[31m-    color: "bg-green-50 text-green-600",[m
+[31m-  },[m
+[31m-  {[m
+[31m-    icon: Award,[m
+[31m-    title: "Industry Certified",[m
+[31m-    description: "ISO 9001:2015 certified manufacturing with REACH and BIS compliance for all products.",[m
+[31m-    color: "bg-amber-50 text-amber-600",[m
+[31m-  },[m
+[31m-  {[m
+[31m-    icon: Users,[m
+[31m-    title: "Customer First",[m
+[31m-    description: "24/7 support, hassle-free returns, and a community of 50,000+ satisfied customers.",[m
+[31m-    color: "bg-blue-50 text-blue-600",[m
+[31m-  },[m
+[31m-];[m
+[31m-[m
+[31m-const TEAM = [[m
+[31m-  { name: "Rajiv Sharma", role: "Founder & CEO", initials: "RS" },[m
+[31m-  { name: "Priya Menon", role: "Head of R&D", initials: "PM" },[m
+[31m-  { name: "Ankit Gupta", role: "Operations Director", initials: "AG" },[m
+[31m-  { name: "Neha Kapoor", role: "Marketing Lead", initials: "NK" },[m
+[31m-];[m
+[31m-[m
+[31m-export default function AboutPage() {[m
+[31m-  return ([m
+[31m-    <div className="pt-20 min-h-screen bg-background">[m
+[31m-      {/* Hero */}[m
+[31m-      <section className="bg-[#0F172A] py-20 relative overflow-hidden">[m
+[31m-        <div className="absolute inset-0">[m
+[31m-          <div className="absolute top-10 left-1/3 w-72 h-72 bg-[#00A86B]/10 rounded-full blur-3xl" />[m
+[31m-          <div className="absolute bottom-10 right-1/4 w-56 h-56 bg-blue-500/10 rounded-full blur-3xl" />[m
+[31m-        </div>[m
+[31m-        <div className="container-custom relative z-10">[m
+[31m-          <div className="grid lg:grid-cols-2 gap-12 items-center">[m
+[31m-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>[m
+[31m-              <span className="inline-block px-4 py-1.5 rounded-full bg-[#00A86B]/20 text-[#00A86B] text-sm font-semibold mb-4">[m
+[31m-                Our Story[m
+[31m-              </span>[m
+[31m-              <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-5">[m
+[31m-                Making India Cleaner,{" "}[m
+[31m-                <span className="text-[#00A86B]">One Home at a Time</span>[m
+[31m-              </h1>[m
+[31m-              <p className="text-white/60 text-lg mb-6 leading-relaxed">[m
+[31m-                Founded in 2018, Cleanora was born from a simple belief — every Indian home deserves[m
+[31m-                world-class cleaning products at honest prices. We formulate, test, and deliver[m
+[31m-                premium cleaning solutions that actually work.[m
+[31m-              </p>[m
+[31m-              <Link href="/shop" className="btn-primary inline-flex">[m
+[31m-                Shop Now <ArrowRight size={18} />[m
+[31m-              </Link>[m
+[31m-            </motion.div>[m
+[31m-[m
+[31m-            <motion.div[m
+[31m-              initial={{ opacity: 0, scale: 0.9 }}[m
+[31m-              animate={{ opacity: 1, scale: 1 }}[m
+[31m-              transition={{ delay: 0.2 }}[m
+[31m-              className="grid grid-cols-2 gap-4"[m
+[31m-            >[m
+[31m-              {STATS.map((stat, i) => {[m
+[31m-                const Icon = stat.icon;[m
+[31m-                return ([m
+[31m-                  <div key={stat.label} className={`bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-5 ${i === 0 ? "col-span-2 sm:col-span-1" : ""}`}>[m
+[31m-                    <Icon size={22} className="text-[#00A86B] mb-3" />[m
+[31m-                    <p className="text-3xl font-black text-white">{stat.value}</p>[m
+[31m-                    <p className="text-white/50 text-sm mt-1">{stat.label}</p>[m
+[31m-                  </div>[m
+[31m-                );[m
+[31m-              })}[m
+[31m-            </motion.div>[m
+[31m-          </div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-[m
+[31m-      {/* Mission */}[m
+[31m-      <section className="py-16 bg-[#E6FFF5]">[m
+[31m-        <div className="container-custom text-center max-w-3xl mx-auto">[m
+[31m-          <motion.div[m
+[31m-            initial={{ opacity: 0, y: 20 }}[m
+[31m-            whileInView={{ opacity: 1, y: 0 }}[m
+[31m-            viewport={{ once: true }}[m
+[31m-          >[m
+[31m-            <span className="inline-block px-4 py-1.5 rounded-full bg-[#00A86B]/20 text-[#00A86B] text-sm font-semibold mb-4">[m
+[31m-              Our Mission[m
+[31m-            </span>[m
+[31m-            <h2 className="text-3xl md:text-4xl font-black text-[#0F172A] mb-5">[m
+[31m-              Clean Living, Better Living[m
+[31m-            </h2>[m
+[31m-            <p className="text-[#64748B] text-lg leading-relaxed">[m
+[31m-              We believe a cleaner environment leads to healthier lives. Our mission is to develop[m
+[31m-              safe, effective, and affordable cleaning products that protect your family, your home,[m
+[31m-              and our planet — without compromise.[m
+[31m-            </p>[m
+[31m-          </motion.div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-[m
+[31m-      {/* Values */}[m
+[31m-      <section className="py-16 bg-white">[m
+[31m-        <div className="container-custom">[m
+[31m-          <div className="text-center mb-12">[m
+[31m-            <span className="inline-block px-4 py-1.5 rounded-full bg-[#00A86B]/10 text-[#00A86B] text-sm font-semibold mb-3">[m
+[31m-              What We Stand For[m
+[31m-            </span>[m
+[31m-            <h2 className="text-3xl font-black text-[#0F172A]">Our Core Values</h2>[m
+[31m-          </div>[m
+[31m-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">[m
+[31m-            {VALUES.map((value, i) => {[m
+[31m-              const Icon = value.icon;[m
+[31m-              return ([m
+[31m-                <motion.div[m
+[31m-                  key={value.title}[m
+[31m-                  initial={{ opacity: 0, y: 20 }}[m
+[31m-                  whileInView={{ opacity: 1, y: 0 }}[m
+[31m-                  viewport={{ once: true }}[m
+[31m-                  transition={{ delay: i * 0.1 }}[m
+[31m-                  className="p-6 rounded-2xl border border-[var(--color-border)] bg-white hover:shadow-card transition-shadow"[m
+[31m-                >[m
+[31m-                  <div className={`w-12 h-12 rounded-xl ${value.color} flex items-center justify-center mb-4`}>[m
+[31m-                    <Icon size={22} />[m
+[31m-                  </div>[m
+[31m-                  <h3 className="font-bold text-[#0F172A] mb-2">{value.title}</h3>[m
+[31m-                  <p className="text-sm text-[#64748B] leading-relaxed">{value.description}</p>[m
+[31m-                </motion.div>[m
+[31m-              );[m
+[31m-            })}[m
+[31m-          </div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-[m
+[31m-      {/* Certifications */}[m
+[31m-      <section className="py-14 bg-gray-50">[m
+[31m-        <div className="container-custom">[m
+[31m-          <div className="text-center mb-10">[m
+[31m-            <h2 className="text-2xl font-black text-[#0F172A] mb-2">Certifications & Compliance</h2>[m
+[31m-            <p className="text-[#64748B]">We meet the highest industry standards</p>[m
+[31m-          </div>[m
+[31m-          <div className="flex flex-wrap items-center justify-center gap-6">[m
+[31m-            {["ISO 9001:2015", "BIS Certified", "REACH Compliant", "GreenMark Certified", "MSDS Available"].map((cert) => ([m
+[31m-              <div key={cert} className="flex items-center gap-2 bg-white px-5 py-3 rounded-xl border border-[var(--color-border)] shadow-sm">[m
+[31m-                <CheckCircle size={16} className="text-[#00A86B]" />[m
+[31m-                <span className="text-sm font-semibold text-[#0F172A]">{cert}</span>[m
+[31m-              </div>[m
+[31m-            ))}[m
+[31m-          </div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-[m
+[31m-      {/* Team */}[m
+[31m-      <section className="py-16 bg-white">[m
+[31m-        <div className="container-custom">[m
+[31m-          <div className="text-center mb-12">[m
+[31m-            <span className="inline-block px-4 py-1.5 rounded-full bg-[#00A86B]/10 text-[#00A86B] text-sm font-semibold mb-3">[m
+[31m-              Leadership Team[m
+[31m-            </span>[m
+[31m-            <h2 className="text-3xl font-black text-[#0F172A]">The People Behind Cleanora</h2>[m
+[31m-          </div>[m
+[31m-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">[m
+[31m-            {TEAM.map((member, i) => ([m
+[31m-              <motion.div[m
+[31m-                key={member.name}[m
+[31m-                initial={{ opacity: 0, y: 20 }}[m
+[31m-                whileInView={{ opacity: 1, y: 0 }}[m
+[31m-                viewport={{ once: true }}[m
+[31m-                transition={{ delay: i * 0.1 }}[m
+[31m-                className="text-center p-6 rounded-2xl border border-[var(--color-border)] bg-white hover:shadow-card transition-shadow"[m
+[31m-              >[m
+[31m-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00A86B] to-[#059669] flex items-center justify-center text-white font-black text-lg mx-auto mb-4">[m
+[31m-                  {member.initials}[m
+[31m-                </div>[m
+[31m-                <h3 className="font-bold text-[#0F172A]">{member.name}</h3>[m
+[31m-                <p className="text-sm text-[#64748B] mt-1">{member.role}</p>[m
+[31m-              </motion.div>[m
+[31m-            ))}[m
+[31m-          </div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-[m
+[31m-      {/* CTA */}[m
+[31m-      <section className="py-16 bg-[#0F172A]">[m
+[31m-        <div className="container-custom text-center">[m
+[31m-          <motion.div[m
+[31m-            initial={{ opacity: 0, y: 20 }}[m
+[31m-            whileInView={{ opacity: 1, y: 0 }}[m
+[31m-            viewport={{ once: true }}[m
+[31m-          >[m
+[31m-            <h2 className="text-3xl font-black text-white mb-4">[m
+[31m-              Ready to Experience the Cleanora Difference?[m
+[31m-            </h2>[m
+[31m-            <p className="text-white/60 mb-8 max-w-xl mx-auto">[m
+[31m-              Join 50,000+ households who trust Cleanora for a cleaner, healthier home.[m
+[31m-            </p>[m
+[31m-            <div className="flex flex-wrap gap-4 justify-center">[m
+[31m-              <Link href="/shop" className="btn-primary">[m
+[31m-                Shop Now <ArrowRight size={18} />[m
+[31m-              </Link>[m
+[31m-              <Link href="/contact" className="btn-outline border-white/20 text-white hover:bg-white/10">[m
+[31m-                Contact Us[m
+[31m-              </Link>[m
+[31m-            </div>[m
+[31m-          </motion.div>[m
+[31m-        </div>[m
+[31m-      </section>[m
+[31m-    </div>[m
+[31m-  );[m
+[31m-}[m
+[1mdiff --git a/app/admin/analytics/page.tsx b/app/admin/analytics/page.tsx[m
+[1mindex a6af8d2..2e0c6e2 100644[m
+[1m--- a/app/admin/analytics/page.tsx[m
+[1m+++ b/app/admin/analytics/page.tsx[m
+[36m@@ -1,12 +1,12 @@[m
+ "use client";[m
+ [m
+[31m-import { useState, useEffect } from "react";[m
+[32m+[m[32mimport { useState, useEffect, useCallback } from "react";[m
+ import {[m
+[31m-  BarChart2, TrendingUp, DollarSign, ShoppingCart, Users, Package[m
+[32m+[m[32m  BarChart2, TrendingUp, DollarSign, ShoppingCart, Users, Package, AlertTriangle, RefreshCw,[m
+ } from "lucide-react";[m
+ import {[m
+   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,[m
+[31m-  ResponsiveContainer, PieChart, Pie, Cell, Legend[m
+[32m+[m[32m  ResponsiveContainer, PieChart, Pie, Cell, Legend,[m
+ } from "recharts";[m
+ import { formatPrice } from "@/lib/utils";[m
+ import Link from "next/link";[m
+[36m@@ -29,23 +29,70 @@[m [minterface AnalyticsData {[m
+ [m
+ const PIE_COLORS = ["#00A86B", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];[m
+ [m
+[32m+[m[32m// Recharts Formatter typing: ValueType is a union that includes undefined[m
+[32m+[m[32m// Use type assertion to satisfy their complex generic constraint[m
+[32m+[m[32m// eslint-disable-next-line @typescript-eslint/no-explicit-any[m
+[32m+[m[32mconst revenueFormatter = (value: any): [string, string] =>[m
+[32m+[m[32m  [value != null ? formatPrice(Number(value)) : "₹0", "Revenue"];[m
+[32m+[m[32m// eslint-disable-next-line @typescript-eslint/no-explicit-any[m
+[32m+[m[32mconst countFormatter = (value: any, name: any): [string, string] =>[m
+[32m+[m[32m  [String(value ?? 0), String(name)];[m
+[32m+[m
+ export default function AdminAnalyticsPage() {[m
+   const [data, setData] = useState<AnalyticsData | null>(null);[m
+   const [loading, setLoading] = useState(true);[m
+[32m+[m[32m  const [error, setError] = useState<string | null>(null);[m
+ [m
+[31m-  useEffect(() => {[m
+[31m-    fetch("/api/admin/analytics")[m
+[31m-      .then((r) => r.json())[m
+[31m-      .then((d) => { if (d.success) setData(d); })[m
+[31m-      .finally(() => setLoading(false));[m
+[32m+[m[32m  const fetchAnalytics = useCallback(async () => {[m
+[32m+[m[32m    setLoading(true);[m
+[32m+[m[32m    setError(null);[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const res = await fetch("/api/admin/analytics");[m
+[32m+[m[32m      if (!res.ok) throw new Error(`Server error: ${res.status}`);[m
+[32m+[m[32m      const d = await res.json();[m
+[32m+[m[32m      if (d.success) {[m
+[32m+[m[32m        setData(d);[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        throw new Error(d.message || "Failed to load analytics");[m
+[32m+[m[32m      }[m
+[32m+[m[32m    } catch (err) {[m
+[32m+[m[32m      setError(err instanceof Error ? err.message : "Failed to load analytics");[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false);[m
+[32m+[m[32m    }[m
+   }, []);[m
+ [m
+[31m-  const statCards = data ? [[m
+[31m-    { label: "Total Revenue", value: formatPrice(data.stats.totalRevenue), sub: `${formatPrice(data.stats.monthRevenue)} this month`, trend: data.stats.revenueGrowth, icon: DollarSign, color: "bg-primary-500", lightColor: "bg-primary-50", textColor: "text-primary-600" },[m
+[31m-    { label: "Total Orders", value: data.stats.totalOrders.toLocaleString(), sub: `${data.stats.monthOrders} this month`, trend: 12, icon: ShoppingCart, color: "bg-blue-500", lightColor: "bg-blue-50", textColor: "text-blue-600" },[m
+[31m-    { label: "Total Customers", value: data.stats.totalUsers.toLocaleString(), sub: `+${data.stats.monthUsers} this month`, trend: 8, icon: Users, color: "bg-violet-500", lightColor: "bg-violet-50", textColor: "text-violet-600" },[m
+[31m-    { label: "Active Products", value: data.stats.totalProducts.toLocaleString(), sub: `${data.stats.lowStockProducts} low stock`, trend: -2, icon: Package, color: "bg-amber-500", lightColor: "bg-amber-50", textColor: "text-amber-600" },[m
+[31m-  ]

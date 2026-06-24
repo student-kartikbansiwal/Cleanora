@@ -167,10 +167,17 @@ export default function CheckoutPage() {
         throw new Error("Failed to create payment");
       }
 
-      // Load Razorpay script
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      document.body.appendChild(script);
+
+      // Load Razorpay script (only once, check if already loaded)
+      let script = document.getElementById("razorpay-checkout") as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.id = "razorpay-checkout";
+        script.async = true;
+        document.body.appendChild(script);
+      }
+
 
       const cancelPendingOrder = async () => {
         try {

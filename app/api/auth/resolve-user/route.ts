@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import { internalApiGuard } from "@/lib/authGuard";
 
+// Internal API called by NextAuth JWT callback to resolve Google users to MongoDB IDs
+// Protected by X-Internal-Secret header
 export async function POST(request: NextRequest) {
+  const guard = internalApiGuard(request);
+  if (guard) return guard;
+
   try {
     await dbConnect();
     const { email } = await request.json();

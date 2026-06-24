@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { adminGuard } from "@/lib/authGuard";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
-async function isAdmin() {
-  const session = await auth();
-  return session?.user?.role === "admin";
-}
-
 export async function GET(request: NextRequest) {
   try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+    const guard = await adminGuard(); if (guard) {
+      return guard; }
     await dbConnect();
 
     const { searchParams } = new URL(request.url);

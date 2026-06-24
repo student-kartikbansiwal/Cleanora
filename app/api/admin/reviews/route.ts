@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { adminGuard } from "@/lib/authGuard";
 import dbConnect from "@/lib/db";
 import Review from "@/models/Review";
 import mongoose from "mongoose";
 
-async function isAdmin() {
-  const session = await auth();
-  return session?.user?.role === "admin";
-}
-
 // GET /api/admin/reviews
 export async function GET(request: NextRequest) {
-  try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+  const guard = await adminGuard();
+  if (guard) return guard;
 
+  try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const status = searchParams.get("status") || ""; // "pending" | "approved" | "rejected"
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
+    const status = searchParams.get("status") || "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {};
-    if (status) filter.status = status;
+    const filter: Record<string, string> = {};
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      filter.status = status;
+    }
 
     const [reviews, total] = await Promise.all([
       Review.find(filter)
@@ -45,17 +40,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Admin reviews GET error:", error);
-    return NextResponse.json({ success: false, message: "Failed to fetch reviews" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch reviews" },
+      { status: 500 }
+    );
   }
 }
 
 // PATCH /api/admin/reviews — moderate review
 export async function PATCH(request: NextRequest) {
-  try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+  const guard = await adminGuard();
+  if (guard) return guard;
 
+  try {
     await dbConnect();
     const { id, status } = await request.json();
 
@@ -67,15 +64,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid review ID" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Invalid review ID" },
+        { status: 400 }
+      );
     }
 
     const review = await Review.findByIdAndUpdate(id, { status }, { new: true });
     if (!review) {
-      return NextResponse.json({ success: false, message: "Review not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Review not found" },
+        { status: 404 }
+      );
     }
 
-    // Recompute product rating if status changes to approved/rejected
+    // Recompute product rating when approval status changes
     if (status === "approved" || status === "rejected") {
       const Product = (await import("@/models/Product")).default;
       const stats = await Review.aggregate([
@@ -89,7 +92,9 @@ export async function PATCH(request: NextRequest) {
         },
       ]);
       await Product.findByIdAndUpdate(review.product, {
-        averageRating: stats[0]?.averageRating || 0,
+        averageRating: stats[0]?.averageRating
+          ? Math.round(stats[0].averageRating * 10) / 10
+          : 0,
         reviewCount: stats[0]?.reviewCount || 0,
       });
     }
@@ -97,29 +102,44 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, review });
   } catch (error) {
     console.error("Admin review PATCH error:", error);
-    return NextResponse.json({ success: false, message: "Failed to update review" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to update review" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE /api/admin/reviews
+// DELETE /api/admin/reviews?id=xxx
 export async function DELETE(request: NextRequest) {
-  try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+  const guard = await adminGuard();
+  if (guard) return guard;
 
+  try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid review ID" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Invalid review ID" },
+        { status: 400 }
+      );
     }
 
-    await Review.findByIdAndDelete(id);
+    const review = await Review.findByIdAndDelete(id);
+    if (!review) {
+      return NextResponse.json(
+        { success: false, message: "Review not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ success: true, message: "Review deleted" });
   } catch (error) {
     console.error("Admin review DELETE error:", error);
-    return NextResponse.json({ success: false, message: "Failed to delete review" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to delete review" },
+      { status: 500 }
+    );
   }
 }

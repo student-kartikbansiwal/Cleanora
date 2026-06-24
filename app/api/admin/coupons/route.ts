@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { adminGuard } from "@/lib/authGuard";
 import dbConnect from "@/lib/db";
 import Coupon from "@/models/Coupon";
 import { z } from "zod";
 
-async function isAdmin() {
-  const session = await auth();
-  return session?.user?.role === "admin";
-}
-
-const CouponSchema = z.object({
-  code: z.string().min(3).max(20).toUpperCase().trim(),
+const CouponCreateSchema = z.object({
+  code: z.string().min(3, "Code must be at least 3 characters").max(20).toUpperCase().trim(),
   type: z.enum(["percentage", "flat"]),
   value: z.number().positive("Value must be positive"),
   minOrderAmount: z.number().min(0).default(0),
@@ -19,50 +14,61 @@ const CouponSchema = z.object({
   validFrom: z.string().datetime(),
   validTo: z.string().datetime(),
   isActive: z.boolean().default(true),
-  description: z.string().optional(),
+  description: z.string().max(500).optional(),
 });
 
 // GET /api/admin/coupons
 export async function GET(request: NextRequest) {
-  try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+  const guard = await adminGuard();
+  if (guard) return guard;
 
+  try {
     await dbConnect();
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
     const search = searchParams.get("search") || "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {};
+    const filter: Record<string, unknown> = {};
     if (search) {
-      filter.code = { $regex: search, $options: "i" };
+      // Sanitize search to prevent regex injection
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.code = { $regex: escapedSearch, $options: "i" };
     }
 
     const [coupons, total] = await Promise.all([
-      Coupon.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Coupon.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
       Coupon.countDocuments(filter),
     ]);
 
-    return NextResponse.json({ success: true, coupons, total, totalPages: Math.ceil(total / limit) });
+    return NextResponse.json({
+      success: true,
+      coupons,
+      total,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error("Admin coupons GET error:", error);
-    return NextResponse.json({ success: false, message: "Failed to fetch coupons" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch coupons" },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/admin/coupons
 export async function POST(request: NextRequest) {
-  try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
+  const guard = await adminGuard();
+  if (guard) return guard;
 
+  try {
     await dbConnect();
     const body = await request.json();
-    const data = CouponSchema.parse(body);
+    const data = CouponCreateSchema.parse(body);
 
     if (new Date(data.validTo) <= new Date(data.validFrom)) {
       return NextResponse.json(
@@ -80,7 +86,10 @@ export async function POST(request: NextRequest) {
 
     const existing = await Coupon.findOne({ code: data.code });
     if (existing) {
-      return NextResponse.json({ success: false, message: "Coupon code already exists" }, { status: 409 });
+      return NextResponse.json(
+        { success: false, message: "Coupon code already exists" },
+        { status: 409 }
+      );
     }
 
     const coupon = await Coupon.create({
@@ -98,6 +107,9 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("Admin coupons POST error:", error);
-    return NextResponse.json({ success: false, message: "Failed to create coupon" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to create coupon" },
+      { status: 500 }
+    );
   }
 }

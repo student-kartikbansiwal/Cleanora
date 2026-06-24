@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { adminGuard } from "@/lib/authGuard";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
-
-async function isAdmin() {
-  const session = await auth();
-  return session?.user?.role === "admin";
-}
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await adminGuard();
+  if (guard) return guard;
+
   try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
     await dbConnect();
     const { id } = await params;
     const order = await Order.findById(id).populate("user", "name email phone").lean();
@@ -32,10 +27,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await adminGuard();
+  if (guard) return guard;
+
   try {
-    if (!(await isAdmin())) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
-    }
     await dbConnect();
     const { id } = await params;
     const body = await req.json();

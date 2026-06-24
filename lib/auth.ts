@@ -5,6 +5,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 // Edge-safe auth config — NO direct Mongoose imports at module level
 // DB access happens via API routes, not middleware
 
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || "";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
@@ -28,7 +30,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Call our own API to validate — keeps Edge runtime clean
         const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/validate`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            // Pass internal secret so the endpoint rejects public calls
+            "x-internal-secret": INTERNAL_SECRET,
+          },
           body: JSON.stringify({
             email: credentials.email,
             password: credentials.password,
@@ -46,7 +52,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/google-sync`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-secret": INTERNAL_SECRET,
+            },
             body: JSON.stringify({ user }),
           });
           const data = await res.json();
@@ -75,7 +84,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const res = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/resolve-user`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-secret": INTERNAL_SECRET,
+            },
             body: JSON.stringify({ email: token.email }),
           });
           const data = await res.json();

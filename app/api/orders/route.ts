@@ -28,7 +28,7 @@ const CreateOrderSchema = z.object({
   }),
   paymentMethod: z.enum(["razorpay", "upi", "cod"]),
   couponCode: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(500).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
 
     const orders = await Order.find({ user: session.user.id })
       .sort({ createdAt: -1 })
@@ -94,32 +94,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await dbConnect();
+    const mongooseInstance = await dbConnect();
     const body = await request.json();
     const data = CreateOrderSchema.parse(body);
 
-    const orderItems = [];
+    // ─── Pre-validation (outside transaction) ─────────────────────────────────
+    const productIds = data.items.map((i) => i.productId);
+
+    for (const productId of productIds) {
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return NextResponse.json(
+          { success: false, message: `Invalid product ID: ${productId}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Fetch all products in a single query
+    const products = await Product.find({
+      _id: { $in: productIds },
+      isActive: true,
+    }).lean();
+
+    if (products.length !== productIds.length) {
+      return NextResponse.json(
+        { success: false, message: "One or more products are unavailable" },
+        { status: 400 }
+      );
+    }
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
     let subtotal = 0;
+    const orderItems: {
+      product: mongoose.Types.ObjectId;
+      name: string;
+      image: string;
+      price: number;
+      quantity: number;
+      sku: string;
+    }[] = [];
 
     for (const item of data.items) {
-      if (!mongoose.Types.ObjectId.isValid(item.productId)) {
-        return NextResponse.json(
-          { success: false, message: `Invalid product ID: ${item.productId}` },
-          { status: 400 }
-        );
-      }
-
-      const product = await Product.findById(item.productId);
+      const product = productMap.get(item.productId);
       if (!product) {
         return NextResponse.json(
-          { success: false, message: `Product not found` },
+          { success: false, message: `Product not found: ${item.productId}` },
           { status: 404 }
-        );
-      }
-      if (!product.isActive) {
-        return NextResponse.json(
-          { success: false, message: `${product.name} is no longer available` },
-          { status: 400 }
         );
       }
       if (product.stock < item.quantity) {
@@ -132,102 +153,213 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const price = product.price;
-      subtotal += price * item.quantity;
-
+      subtotal += product.price * item.quantity;
       orderItems.push({
-        product: product._id,
+        product: product._id as mongoose.Types.ObjectId,
         name: product.name,
         image: product.images[0]?.url || "/placeholder-product.png",
-        price,
+        price: product.price,
         quantity: item.quantity,
         sku: product.sku,
       });
     }
 
+    // ─── Coupon Pre-validation ────────────────────────────────────────────────
+    let couponId: mongoose.Types.ObjectId | null = null;
     let discount = 0;
+
     if (data.couponCode) {
       const Coupon = (await import("@/models/Coupon")).default;
-      const coupon = await Coupon.findOne({
+
+      // Re-fetch with proper filter
+      const validCoupon = await Coupon.findOne({
         code: data.couponCode.toUpperCase(),
         isActive: true,
         validFrom: { $lte: new Date() },
         validTo: { $gte: new Date() },
       });
 
-      if (coupon && subtotal >= coupon.minOrderAmount && coupon.usedCount < coupon.usageLimit) {
-        if (coupon.type === "percentage") {
-          discount = (subtotal * coupon.value) / 100;
-          if (coupon.maxDiscountAmount) {
-            discount = Math.min(discount, coupon.maxDiscountAmount);
-          }
-        } else {
-          discount = Math.min(coupon.value, subtotal);
-        }
-        // Atomic increment — only if under limit (guards against race conditions)
-        const updated = await Coupon.findOneAndUpdate(
-          { _id: coupon._id, usedCount: { $lt: coupon.usageLimit } },
-          { $inc: { usedCount: 1 } },
-          { new: true }
+      if (!validCoupon) {
+        return NextResponse.json(
+          { success: false, message: "Invalid or expired coupon code" },
+          { status: 400 }
         );
-        if (!updated) {
-          // Race condition — coupon was exhausted between check and update
-          discount = 0;
-        }
-      } else if (coupon && coupon.usedCount >= coupon.usageLimit) {
+      }
+
+      if (validCoupon.usedCount >= validCoupon.usageLimit) {
         return NextResponse.json(
           { success: false, message: "Coupon usage limit has been reached" },
           { status: 400 }
         );
       }
-    }
 
-    const shippingCharge = subtotal >= 499 ? 0 : 49;
-    const totalAmount = subtotal - discount + shippingCharge;
-
-    const order = await Order.create({
-      orderId: generateOrderId(),
-      user: session.user.id,
-      items: orderItems,
-      shippingAddress: data.shippingAddress,
-      subtotal,
-      shippingCharge,
-      discount,
-      couponCode: data.couponCode,
-      totalAmount,
-      paymentMethod: data.paymentMethod,
-      paymentStatus: "pending",
-      orderStatus: "placed",
-      notes: data.notes,
-      statusHistory: [{ status: "placed", timestamp: new Date() }],
-    });
-
-    for (const item of data.items) {
-      const updated = await Product.findOneAndUpdate(
-        { _id: item.productId, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity, soldCount: item.quantity } },
-        { new: true }
-      );
-      if (!updated) {
-        // Race condition — stock was taken between validation and update; rollback order
-        await Order.findByIdAndDelete(order._id);
+      if (subtotal < validCoupon.minOrderAmount) {
         return NextResponse.json(
-          { success: false, message: "Some items went out of stock. Please refresh your cart." },
+          {
+            success: false,
+            message: `Minimum order amount of ₹${validCoupon.minOrderAmount} required for this coupon`,
+          },
           { status: 400 }
         );
       }
+
+      if (validCoupon.type === "percentage") {
+        discount = (subtotal * validCoupon.value) / 100;
+        if (validCoupon.maxDiscountAmount) {
+          discount = Math.min(discount, validCoupon.maxDiscountAmount);
+        }
+      } else {
+        discount = Math.min(validCoupon.value, subtotal);
+      }
+
+      discount = Math.round(discount * 100) / 100;
+      couponId = validCoupon._id;
     }
 
-    await Cart.findOneAndUpdate({ user: session.user.id }, { items: [] });
+    const shippingCharge = subtotal - discount >= 499 ? 0 : 49;
+    const totalAmount = subtotal - discount + shippingCharge;
 
-    console.log(`Order created: ${order.orderId} for user ${session.user.id}`);
+    // ─── MongoDB Transaction (atomic stock + coupon + order) ──────────────────
+    const dbConn = mongooseInstance.connection;
+    const supportsTransactions = dbConn.readyState === 1 &&
+      dbConn.db?.databaseName !== undefined;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let order: any = null;
+
+    if (supportsTransactions) {
+      // Use a session for atomic operations (requires replica set / Atlas)
+      const txSession = await mongoose.startSession();
+      try {
+        await txSession.withTransaction(async () => {
+          // Atomically decrement stock for all items
+          for (const item of data.items) {
+            const updated = await Product.findOneAndUpdate(
+              { _id: item.productId, stock: { $gte: item.quantity } },
+              { $inc: { stock: -item.quantity, soldCount: item.quantity } },
+              { new: true, session: txSession }
+            );
+            if (!updated) {
+              throw new Error(`Insufficient stock for one or more products`);
+            }
+          }
+
+          // Atomically increment coupon usage
+          if (couponId) {
+            const Coupon = (await import("@/models/Coupon")).default;
+            const updatedCoupon = await Coupon.findOneAndUpdate(
+              { _id: couponId, usedCount: { $lt: (await Coupon.findById(couponId, null, { session: txSession }))!.usageLimit } },
+              { $inc: { usedCount: 1 } },
+              { new: true, session: txSession }
+            );
+            if (!updatedCoupon) {
+              throw new Error("Coupon usage limit reached");
+            }
+          }
+
+
+          // Create the order
+          const newOrder = new Order({
+            orderId: generateOrderId(),
+            user: session.user.id,
+            items: orderItems,
+            shippingAddress: data.shippingAddress,
+            subtotal,
+            shippingCharge,
+            discount,
+            couponCode: data.couponCode,
+            totalAmount,
+            paymentMethod: data.paymentMethod,
+            paymentStatus: "pending",
+            orderStatus: "placed",
+            notes: data.notes,
+            statusHistory: [{ status: "placed", timestamp: new Date() }],
+          });
+          await newOrder.save({ session: txSession });
+          order = newOrder;
+
+
+          // Clear the cart
+          await Cart.findOneAndUpdate(
+            { user: session.user.id },
+            { items: [] },
+            { session: txSession }
+          );
+        });
+      } finally {
+        await txSession.endSession();
+      }
+    } else {
+      // Fallback: non-transactional (single-node dev MongoDB)
+      // Still uses atomic findOneAndUpdate with stock guard
+      for (const item of data.items) {
+        const updated = await Product.findOneAndUpdate(
+          { _id: item.productId, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity, soldCount: item.quantity } },
+          { new: true }
+        );
+        if (!updated) {
+          return NextResponse.json(
+            { success: false, message: "Some items went out of stock. Please refresh your cart." },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (couponId) {
+        const Coupon = (await import("@/models/Coupon")).default;
+        const updatedCoupon = await Coupon.findOneAndUpdate(
+          { _id: couponId, usedCount: { $lt: (await Coupon.findById(couponId))!.usageLimit } },
+          { $inc: { usedCount: 1 } },
+          { new: true }
+        );
+        if (!updatedCoupon) {
+          // Race condition — restore stock
+          for (const item of data.items) {
+            await Product.findOneAndUpdate(
+              { _id: item.productId },
+              { $inc: { stock: item.quantity, soldCount: -item.quantity } }
+            );
+          }
+          return NextResponse.json(
+            { success: false, message: "Coupon usage limit has been reached" },
+            { status: 400 }
+          );
+        }
+      }
+
+      order = await Order.create({
+        orderId: generateOrderId(),
+        user: session.user.id,
+        items: orderItems,
+        shippingAddress: data.shippingAddress,
+        subtotal,
+        shippingCharge,
+        discount,
+        couponCode: data.couponCode,
+        totalAmount,
+        paymentMethod: data.paymentMethod,
+        paymentStatus: "pending",
+        orderStatus: "placed",
+        notes: data.notes,
+        statusHistory: [{ status: "placed", timestamp: new Date() }],
+      });
+
+      await Cart.findOneAndUpdate({ user: session.user.id }, { items: [] });
+    }
+
+    if (!order) {
+      throw new Error("Order creation failed");
+    }
+
+    console.log(`[Order] Created: ${(order as { orderId: string }).orderId} for user ${session.user.id}`);
 
     return NextResponse.json(
       {
         success: true,
         order,
-        orderId: order.orderId,
-        totalAmount: order.totalAmount,
+        orderId: (order as { orderId: string }).orderId,
+        totalAmount: (order as { totalAmount: number }).totalAmount,
       },
       { status: 201 }
     );
@@ -244,9 +376,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const msg = error instanceof Error ? error.message : "Failed to create order";
     console.error("Order POST error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to create order. Please try again." },
+      { success: false, message: msg },
       { status: 500 }
     );
   }

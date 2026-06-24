@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Check, X, Trash2, Star } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
@@ -19,55 +19,75 @@ interface Review {
 }
 
 const STATUS_TABS = ["all", "pending", "approved", "rejected"] as const;
-type StatusTab = typeof STATUS_TABS[number];
+type StatusTab = (typeof STATUS_TABS)[number];
 
 export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusTab>("pending");
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (statusFilter !== "all") params.set("status", statusFilter);
       const res = await fetch(`/api/admin/reviews?${params}`);
+      if (!res.ok) throw new Error("Server error");
       const data = await res.json();
       if (data.success) {
         setReviews(data.reviews);
         setTotal(data.total);
+      } else {
+        toast.error(data.message || "Failed to load reviews");
       }
+    } catch {
+      toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, page]);
 
-  useEffect(() => { fetchReviews(); }, [statusFilter, page]);
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handleModerate = async (id: string, status: "approved" | "rejected") => {
-    const res = await fetch("/api/admin/reviews", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      toast.success(`Review ${status}`);
-      fetchReviews();
-    } else {
-      toast.error("Failed to update review");
+    setActionLoading(id);
+    try {
+      const res = await fetch("/api/admin/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Review ${status}`);
+        fetchReviews();
+      } else {
+        toast.error(data.message || "Failed to update review");
+      }
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this review permanently?")) return;
-    const res = await fetch(`/api/admin/reviews?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.success) {
-      toast.success("Review deleted");
-      fetchReviews();
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/reviews?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Review deleted");
+        fetchReviews();
+      } else {
+        toast.error(data.message || "Failed to delete review");
+      }
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -88,7 +108,9 @@ export default function AdminReviewsPage() {
             key={tab}
             onClick={() => { setStatusFilter(tab); setPage(1); }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${
-              statusFilter === tab ? "bg-white text-navy-700 shadow-sm" : "text-muted-foreground hover:text-navy-700"
+              statusFilter === tab
+                ? "bg-white text-navy-700 shadow-sm"
+                : "text-muted-foreground hover:text-navy-700"
             }`}
           >
             {tab}
@@ -105,7 +127,9 @@ export default function AdminReviewsPage() {
       ) : reviews.length === 0 ? (
         <div className="bg-white rounded-2xl border border-border p-12 text-center">
           <MessageSquare size={48} className="text-primary-200 mx-auto mb-4" />
-          <p className="text-muted-foreground">No {statusFilter !== "all" ? statusFilter : ""} reviews</p>
+          <p className="text-muted-foreground">
+            No {statusFilter !== "all" ? statusFilter : ""} reviews
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -167,7 +191,8 @@ export default function AdminReviewsPage() {
                 {review.status !== "approved" && (
                   <button
                     onClick={() => handleModerate(review._id, "approved")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
+                    disabled={actionLoading === review._id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-60"
                   >
                     <Check size={14} /> Approve
                   </button>
@@ -175,14 +200,16 @@ export default function AdminReviewsPage() {
                 {review.status !== "rejected" && (
                   <button
                     onClick={() => handleModerate(review._id, "rejected")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors"
+                    disabled={actionLoading === review._id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-60"
                   >
                     <X size={14} /> Reject
                   </button>
                 )}
                 <button
                   onClick={() => handleDelete(review._id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-500 text-sm font-medium hover:bg-gray-100 transition-colors ml-auto"
+                  disabled={actionLoading === review._id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-500 text-sm font-medium hover:bg-gray-100 transition-colors ml-auto disabled:opacity-60"
                 >
                   <Trash2 size={14} /> Delete
                 </button>

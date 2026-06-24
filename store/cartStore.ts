@@ -22,8 +22,8 @@ interface CartStore {
   openCart: () => void;
   closeCart: () => void;
   getTotalItems: () => number;
+  /** Total price of all items (sum of price * quantity) */
   getTotalPrice: () => number;
-  getSubtotal: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -31,6 +31,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+
       addItem: (newItem) => {
         set((state) => {
           const existingItem = state.items.find(
@@ -54,10 +55,12 @@ export const useCartStore = create<CartStore>()(
           return { items: [...state.items, newItem] };
         });
       },
+
       removeItem: (productId) =>
         set((state) => ({
           items: state.items.filter((item) => item.productId !== productId),
         })),
+
       updateQuantity: (productId, quantity) => {
         if (quantity <= 0) {
           get().removeItem(productId);
@@ -69,18 +72,17 @@ export const useCartStore = create<CartStore>()(
           ),
         }));
       },
+
       clearCart: () => set({ items: [] }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
+
       getTotalItems: () =>
         get().items.reduce((total, item) => total + item.quantity, 0),
+
+      /** Returns subtotal as total price (price × quantity for all items) */
       getTotalPrice: () =>
-        get().items.reduce(
-          (total, item) => total + item.price * item.quantity,
-          0
-        ),
-      getSubtotal: () =>
         get().items.reduce(
           (total, item) => total + item.price * item.quantity,
           0

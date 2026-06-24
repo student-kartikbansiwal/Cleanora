@@ -2,10 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import CartDrawer from "@/components/cart/CartDrawer";
-import WhatsAppButton from "@/components/ui/WhatsAppButton";
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
@@ -38,7 +34,8 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://cleanora.in",
     title: "Cleanora — Premium Cleaning Products",
-    description: "Professional-grade cleaning solutions for homes and businesses. Clean Living, Better Living.",
+    description:
+      "Professional-grade cleaning solutions for homes and businesses. Clean Living, Better Living.",
     siteName: "Cleanora",
   },
   twitter: {
@@ -49,6 +46,13 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
@@ -61,13 +65,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
-          <Header />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <Footer />
-          <CartDrawer />
-          <WhatsAppButton />
+          {children}
           <Toaster
             position="top-right"
             toastOptions={{

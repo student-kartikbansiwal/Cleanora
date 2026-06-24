@@ -68,8 +68,11 @@ ReviewSchema.index({ rating: -1 });
 ReviewSchema.index({ createdAt: -1 });
 ReviewSchema.index({ status: 1, createdAt: -1 });
 
-// Update product rating after review status changes
+// Update product rating ONLY when the review status changes
 ReviewSchema.post("save", async function () {
+  // Skip expensive aggregation if status wasn't modified
+  if (!this.isModified("status")) return;
+
   const Review = this.constructor as Model<IReview>;
   const Product = mongoose.model("Product");
 
